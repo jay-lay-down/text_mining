@@ -5,12 +5,12 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import QApplication
 
-# Allow running as a script (python app.py) or as a module (python -m textmining_tool.app)
-if __package__ is None or __package__ == "":
-    sys.path.append(str(Path(__file__).resolve().parent.parent))
-    from textmining_tool.ui.main_window import MainWindow
-else:
-    from .ui.main_window import MainWindow
+# Force project root into sys.path so the app runs with `python app.py` or `python -m textmining_tool.app`
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from textmining_tool.ui.main_window import MainWindow
 
 
 def main() -> int:
