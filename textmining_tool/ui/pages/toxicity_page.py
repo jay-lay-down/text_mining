@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFormLayout,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -59,6 +60,9 @@ class ToxicityPage(QWidget):
         form.addRow("Context 모드", self.context_mode)
         for role, combo in self.role_delta_inputs.items():
             form.addRow(f"{role} delta", combo)
+        form_box = QGroupBox("역할/감점 설정")
+        form_box.setLayout(form)
+
         dict_box = QGroupBox("사전 편집")
         dict_layout = QVBoxLayout()
         dict_layout.addWidget(QLabel("PROFANITY_TOKENS"))
@@ -77,11 +81,17 @@ class ToxicityPage(QWidget):
 
         run_btn = QPushButton("유해성 스캔 실행")
         run_btn.clicked.connect(self.run_scan)
+        run_row = QHBoxLayout()
+        run_row.addStretch()
+        run_row.addWidget(run_btn)
+
+        top_grid = QGridLayout()
+        top_grid.addWidget(form_box, 0, 0)
+        top_grid.addWidget(dict_box, 0, 1)
+        top_grid.addLayout(run_row, 1, 0, 1, 2)
 
         layout = QVBoxLayout()
-        layout.addLayout(form)
-        layout.addWidget(dict_box)
-        layout.addWidget(run_btn)
+        layout.addLayout(top_grid)
         layout.addWidget(QLabel("상세"))
         layout.addWidget(self.table_view)
         layout.addWidget(QLabel("요약"))

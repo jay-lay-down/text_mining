@@ -10,9 +10,11 @@ from PyQt6.QtWidgets import (
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
+    QGridLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QLineEdit,
     QPushButton,
     QSlider,
     QTableView,
@@ -33,6 +35,8 @@ class PreprocessPage(QWidget):
         self.worker_runner = WorkerRunner()
 
         self.file_info = QLabel("파일을 업로드하세요")
+        self.path_edit = QLineEdit()
+        self.path_edit.setReadOnly(True)
         self.column_date = QComboBox()
         self.column_title = QComboBox()
         self.column_text = QListWidget()
@@ -69,7 +73,7 @@ class PreprocessPage(QWidget):
         form.addRow("Source/Page Type", self.column_page_type)
         form.addRow("분석 축(Dim) 선택", self.dimensions_list)
 
-        mapping_box = QGroupBox("컬럼 매핑")
+        mapping_box = QGroupBox("스키마 매핑")
         mapping_box.setLayout(form)
 
         page_type_box = QGroupBox("Page Type 필터")
@@ -85,18 +89,30 @@ class PreprocessPage(QWidget):
         dup_layout.addWidget(self.similar_slider)
         duplicate_box.setLayout(dup_layout)
 
-        btn_load = QPushButton("파일 로드")
-        btn_load.clicked.connect(self.load_file)
+        btn_browse = QPushButton("찾아보기")
+        btn_browse.clicked.connect(self.load_file)
         btn_apply = QPushButton("적용/스키마 확정")
         btn_apply.clicked.connect(self.apply_preprocess)
 
+        load_bar = QHBoxLayout()
+        load_bar.addWidget(QLabel("데이터 로드"))
+        load_bar.addWidget(self.path_edit)
+        load_bar.addWidget(btn_browse)
+        load_bar.addStretch()
+
+        top_grid = QGridLayout()
+        top_grid.addWidget(mapping_box, 0, 0, 1, 2)
+        top_grid.addWidget(page_type_box, 1, 0)
+        top_grid.addWidget(duplicate_box, 1, 1)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        btn_row.addWidget(btn_apply)
+
         layout = QVBoxLayout()
-        layout.addWidget(self.file_info)
-        layout.addWidget(mapping_box)
-        layout.addWidget(page_type_box)
-        layout.addWidget(duplicate_box)
-        layout.addWidget(btn_load)
-        layout.addWidget(btn_apply)
+        layout.addLayout(load_bar)
+        layout.addLayout(top_grid)
+        layout.addLayout(btn_row)
         layout.addWidget(QLabel("미리보기"))
         layout.addWidget(self.preview_table)
         layout.addWidget(QLabel("제거된 중복"))
@@ -113,6 +129,7 @@ class PreprocessPage(QWidget):
             return
         df = pd.read_excel(path) if path.lower().endswith("xlsx") else pd.read_csv(path)
         self.app_state.raw_df = df
+        self.path_edit.setText(path)
         self.file_info.setText(path)
         self._populate_columns(df.columns)
         self.preview_model.update(df.head(100))

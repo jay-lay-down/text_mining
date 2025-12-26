@@ -4,6 +4,7 @@ import pandas as pd
 from PyQt6.QtWidgets import (
     QComboBox,
     QFormLayout,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -64,10 +65,16 @@ class SentimentPage(QWidget):
 
         btn = QPushButton("실행")
         btn.clicked.connect(self.run_sentiment)
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        btn_row.addWidget(btn)
+
+        top_grid = QGridLayout()
+        top_grid.addWidget(cfg_box, 0, 0)
+        top_grid.addLayout(btn_row, 1, 0)
 
         layout = QVBoxLayout()
-        layout.addWidget(cfg_box)
-        layout.addWidget(btn)
+        layout.addLayout(top_grid)
         layout.addWidget(self.sentiment_table)
         layout.addWidget(self.status_strip)
         layout.addStretch()

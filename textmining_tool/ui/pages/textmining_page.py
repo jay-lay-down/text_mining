@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFormLayout,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -75,6 +76,8 @@ class TextMiningPage(QWidget):
         form.addRow("텍스트 소스", self.text_source)
         form.addRow("품사", self.pos_mode)
         form.addRow("최소 빈도", self.min_freq)
+        form.addRow("최소 글자수", self.token_min_len)
+
         sw_box = QGroupBox("불용어 (줄바꿈)")
         sw_layout = QVBoxLayout()
         sw_layout.addWidget(self.stopwords_edit)
@@ -86,18 +89,23 @@ class TextMiningPage(QWidget):
             c_layout.addWidget(opt)
         c_layout.addWidget(self.keep_number)
         c_layout.addWidget(self.keep_english)
-        form.addRow("최소 글자수", self.token_min_len)
         clean_box.setLayout(c_layout)
 
-        btn = QPushButton("텍마 실행")
-        btn.clicked.connect(self.run_textmining)
+        controls = QHBoxLayout()
+        self.run_btn = QPushButton("텍마 실행")
+        self.run_btn.clicked.connect(self.run_textmining)
+        controls.addWidget(self.empty_warning)
+        controls.addStretch()
+        controls.addWidget(self.run_btn)
+
+        top_grid = QGridLayout()
+        top_grid.addWidget(clean_box, 0, 0)
+        top_grid.addWidget(sw_box, 0, 1)
+        top_grid.addLayout(form, 1, 0, 1, 2)
+        top_grid.addLayout(controls, 2, 0, 1, 2)
 
         layout = QVBoxLayout()
-        layout.addWidget(clean_box)
-        layout.addWidget(sw_box)
-        layout.addLayout(form)
-        layout.addWidget(btn)
-        layout.addWidget(self.empty_warning)
+        layout.addLayout(top_grid)
         layout.addWidget(QLabel("Top 50"))
         layout.addWidget(self.top50_table)
         layout.addWidget(QLabel("전체 빈도"))
