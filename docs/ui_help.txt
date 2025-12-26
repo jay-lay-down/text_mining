@@ -1,0 +1,24 @@
+UI 안내 (간략)
+================
+
+탭 구성
+- 데이터 준비: 스키마 자동 제안, 텍스트 컬럼 복수 선택, 추가 분석 차원 선택
+- 트렌드/피벗: 기간 단위 + 그룹 차원별 카운트 피벗
+- 키워드·토픽: 엄격 한글 토큰, 이모지/감탄 제거, 누수 리포트, 빈 문서 경고
+- 유해성/맥락: 비속어 역할(Role) 기반 유해성/타깃 공격 탐지, 컨텍스트 감점 설정
+- 감성/증거: 문장 단위 감성 + Gemini evidence, 맥락형 욕설 delta 반영
+- 연관/네트워크: Apriori/공출현 네트워크
+- 내보내기: 선택 시트 엑셀 저장(스키마 매핑/캐노니컬 포함)
+
+욕설 모드 설명
+- CONTEXT_AWARE: 역할(Role)별 delta 적용 (추천)
+  - EMPHASIS_POS: 감탄/강조 → 0
+  - GENERAL_EXPLETIVE: 일반 감탄 → -1
+  - EMPHASIS_NEG: 부정 강조 → -1~-2
+  - TARGETED_INSULT/SLUR_HATE: 타깃/혐오 → -2
+- ALWAYS_PENALIZE: 욕설이 있으면 무조건 고정 감점
+- profanity_scope: CLEAN_TEXT_ONLY(전처리 후), RAW_TEXT_ONLY(원문), BOTH(두 소스)
+- profanity_mode(레거시):
+  - ONCE_FIXED: 한 번이라도 나오면 고정 감점
+  - COUNT_ACCUM: 등장 횟수에 따라 누적 감점
+  - COUNT_CAP_TO_2: 누적하되 최대 -2
