@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QListWidget, QListWidgetItem, QMainWindow, QStackedWidget, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QMainWindow, QTabWidget, QVBoxLayout, QWidget
 
 from ..core.state import AppState, DEFAULT_EXPORT_SHEETS
 from .pages.buzz_page import BuzzPage
@@ -20,29 +20,24 @@ class MainWindow(QMainWindow):
         self.app_state = app_state or AppState()
         if not self.app_state.export_sheet_flags:
             self.app_state.export_sheet_flags = {k: True for k in DEFAULT_EXPORT_SHEETS}
-        self.menu = QListWidget()
-        self.stack = QStackedWidget()
+        self.tab = QTabWidget()
+        self.tab.setTabPosition(QTabWidget.TabPosition.North)
         self._init_pages()
         container = QWidget()
         layout = QVBoxLayout()
-        layout.addWidget(self.menu)
-        layout.addWidget(self.stack)
+        layout.addWidget(self.tab)
         container.setLayout(layout)
         self.setCentralWidget(container)
-        self.menu.currentRowChanged.connect(self.stack.setCurrentIndex)
-        self.menu.setCurrentRow(0)
 
     def _init_pages(self) -> None:
         pages = [
-            ("전처리", PreprocessPage(self.app_state)),
-            ("버즈", BuzzPage(self.app_state)),
-            ("텍마", TextMiningPage(self.app_state)),
-            ("유해성", ToxicityPage(self.app_state)),
-            ("감성", SentimentPage(self.app_state)),
-            ("네트워크", NetworkPage(self.app_state)),
-            ("Export", ExportPage(self.app_state)),
+            ("데이터 준비", PreprocessPage(self.app_state)),
+            ("트렌드/피벗", BuzzPage(self.app_state)),
+            ("키워드·토픽", TextMiningPage(self.app_state)),
+            ("유해성/맥락", ToxicityPage(self.app_state)),
+            ("감성/증거", SentimentPage(self.app_state)),
+            ("연관/네트워크", NetworkPage(self.app_state)),
+            ("내보내기", ExportPage(self.app_state)),
         ]
         for name, widget in pages:
-            item = QListWidgetItem(name)
-            self.menu.addItem(item)
-            self.stack.addWidget(widget)
+            self.tab.addTab(widget, name)
