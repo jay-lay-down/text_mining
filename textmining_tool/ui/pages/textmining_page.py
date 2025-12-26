@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
     QWidget,
+    QMessageBox,
 )
 
 from ...core import kiwi_tm, wc
@@ -70,6 +71,9 @@ class TextMiningPage(QWidget):
         self.status_strip = StatusStrip()
         self.empty_warning = QLabel("")
         self._build_ui()
+
+    def _show_error(self, message: str) -> None:
+        QMessageBox.critical(self, "텍스트마이닝 오류", message)
 
     def _build_ui(self) -> None:
         form = QFormLayout()
@@ -146,9 +150,13 @@ class TextMiningPage(QWidget):
             "strict_korean_only": self.clean_opts["strict_korean_only"].isChecked(),
             "token_min_len": int(self.token_min_len.currentText()),
         }
-        tokens_df, freq_df, top50_df, monthly_df, audit_df, empty_df = miner.build_tokens(
-            self.app_state.dedup_df, options, text_source=self.text_source.currentText()
-        )
+        try:
+            tokens_df, freq_df, top50_df, monthly_df, audit_df, empty_df = miner.build_tokens(
+                self.app_state.dedup_df, options, text_source=self.text_source.currentText()
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._show_error(f"텍스트마이닝 중 오류가 발생했습니다: {exc}")
+            return
         self.app_state.tokens_df = tokens_df
         self.app_state.freq_df = freq_df
         self.app_state.top50_df = top50_df
@@ -167,10 +175,15 @@ class TextMiningPage(QWidget):
         font_path = assets_dir / "fonts" / "NanumGothic.ttf"
         output_path = assets_dir / "wordcloud.png"
         if tokens_flat:
-            wc.generate_wordcloud(tokens_flat, str(font_path), output_path)
-            self.wordcloud_label.setText("")
-            pixmap = QPixmap(str(output_path))
-            self.wordcloud_label.setPixmap(pixmap)
+            try:
+                font_to_use = str(font_path) if font_path.exists() else None
+                wc.generate_wordcloud(tokens_flat, font_to_use, output_path)
+                self.wordcloud_label.setText("")
+                pixmap = QPixmap(str(output_path))
+                self.wordcloud_label.setPixmap(pixmap)
+            except Exception as exc:  # noqa: BLE001
+                self.wordcloud_label.setText("워드클라우드 생성 실패")
+                self._show_error(f"워드클라우드 생성 실패: {exc}")
         else:
             self.wordcloud_label.setText("토큰 없음")
         total_docs = len(self.app_state.dedup_df) if self.app_state.dedup_df is not None else 0
