@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
     QWidget,
+    QMessageBox,
 )
 
 from ...core import kiwi_tm, wc
@@ -71,6 +72,9 @@ class TextMiningPage(QWidget):
         self.empty_warning = QLabel("")
         self._build_ui()
 
+    def _show_error(self, message: str) -> None:
+        QMessageBox.critical(self, "텍스트마이닝 오류", message)
+
     def _build_ui(self) -> None:
         form = QFormLayout()
         form.addRow("텍스트 소스", self.text_source)
@@ -80,6 +84,7 @@ class TextMiningPage(QWidget):
 
         sw_box = QGroupBox("불용어 (줄바꿈)")
         sw_layout = QVBoxLayout()
+        self.stopwords_edit.setFixedHeight(120)
         sw_layout.addWidget(self.stopwords_edit)
         sw_box.setLayout(sw_layout)
 
@@ -92,7 +97,7 @@ class TextMiningPage(QWidget):
         clean_box.setLayout(c_layout)
 
         controls = QHBoxLayout()
-        self.run_btn = QPushButton("텍마 실행")
+        self.run_btn = QPushButton("실행")
         self.run_btn.clicked.connect(self.run_textmining)
         controls.addWidget(self.empty_warning)
         controls.addStretch()
@@ -104,15 +109,23 @@ class TextMiningPage(QWidget):
         top_grid.addLayout(form, 1, 0, 1, 2)
         top_grid.addLayout(controls, 2, 0, 1, 2)
 
+        results_row = QHBoxLayout()
+        left_col = QVBoxLayout()
+        left_col.addWidget(QLabel("Top 50"))
+        left_col.addWidget(self.top50_table)
+        left_col.addWidget(QLabel("월별 Top"))
+        left_col.addWidget(self.monthly_table)
+        right_col = QVBoxLayout()
+        right_col.addWidget(QLabel("전체 빈도"))
+        right_col.addWidget(self.freq_table)
+        right_col.addWidget(QLabel("워드클라우드"))
+        right_col.addWidget(self.wordcloud_label)
+        results_row.addLayout(left_col, 1)
+        results_row.addLayout(right_col, 1)
+
         layout = QVBoxLayout()
         layout.addLayout(top_grid)
-        layout.addWidget(QLabel("Top 50"))
-        layout.addWidget(self.top50_table)
-        layout.addWidget(QLabel("전체 빈도"))
-        layout.addWidget(self.freq_table)
-        layout.addWidget(QLabel("월별 Top"))
-        layout.addWidget(self.monthly_table)
-        layout.addWidget(self.wordcloud_label)
+        layout.addLayout(results_row)
         layout.addWidget(self.status_strip)
         layout.addStretch()
         self.setLayout(layout)
@@ -137,9 +150,13 @@ class TextMiningPage(QWidget):
             "strict_korean_only": self.clean_opts["strict_korean_only"].isChecked(),
             "token_min_len": int(self.token_min_len.currentText()),
         }
-        tokens_df, freq_df, top50_df, monthly_df, audit_df, empty_df = miner.build_tokens(
-            self.app_state.dedup_df, options, text_source=self.text_source.currentText()
-        )
+        try:
+            tokens_df, freq_df, top50_df, monthly_df, audit_df, empty_df = miner.build_tokens(
+                self.app_state.dedup_df, options, text_source=self.text_source.currentText()
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._show_error(f"텍스트마이닝 중 오류가 발생했습니다: {exc}")
+            return
         self.app_state.tokens_df = tokens_df
         self.app_state.freq_df = freq_df
         self.app_state.top50_df = top50_df
@@ -158,10 +175,15 @@ class TextMiningPage(QWidget):
         font_path = assets_dir / "fonts" / "NanumGothic.ttf"
         output_path = assets_dir / "wordcloud.png"
         if tokens_flat:
-            wc.generate_wordcloud(tokens_flat, str(font_path), output_path)
-            self.wordcloud_label.setText("")
-            pixmap = QPixmap(str(output_path))
-            self.wordcloud_label.setPixmap(pixmap)
+            try:
+                font_to_use = str(font_path) if font_path.exists() else None
+                wc.generate_wordcloud(tokens_flat, font_to_use, output_path)
+                self.wordcloud_label.setText("")
+                pixmap = QPixmap(str(output_path))
+                self.wordcloud_label.setPixmap(pixmap)
+            except Exception as exc:  # noqa: BLE001
+                self.wordcloud_label.setText("워드클라우드 생성 실패")
+                self._show_error(f"워드클라우드 생성 실패: {exc}")
         else:
             self.wordcloud_label.setText("토큰 없음")
         total_docs = len(self.app_state.dedup_df) if self.app_state.dedup_df is not None else 0

@@ -28,6 +28,7 @@ class BuzzPage(QWidget):
         self.include_page_type = QCheckBox("page_type별 보기")
         self.dim_select = QListWidget()
         self.dim_select.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
+        self.dim_select.setMaximumHeight(90)
         self.pivot_model = PandasModel(pd.DataFrame())
         self.pivot_table = QTableView()
         self.pivot_table.setModel(self.pivot_model)
