@@ -22,6 +22,26 @@ class MainWindow(QMainWindow):
             self.app_state.export_sheet_flags = {k: True for k in DEFAULT_EXPORT_SHEETS}
         self.tab = QTabWidget()
         self.tab.setTabPosition(QTabWidget.TabPosition.North)
+        self.tab.setStyleSheet(
+            """
+            QTabBar::tab {
+                background: #e6f0ff;
+                color: #1c2b4a;
+                padding: 8px 14px;
+                margin: 2px;
+                border-radius: 6px;
+            }
+            QTabBar::tab:selected {
+                background: #2f6df6;
+                color: white;
+                font-weight: 600;
+            }
+            QTabWidget::pane {
+                border: 1px solid #2f6df6;
+                border-radius: 8px;
+            }
+            """
+        )
         self._init_pages()
         container = QWidget()
         layout = QVBoxLayout()
