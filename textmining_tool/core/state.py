@@ -14,6 +14,7 @@ class AppState:
     raw_df: Optional[pd.DataFrame] = None
     filtered_df: Optional[pd.DataFrame] = None
     dedup_df: Optional[pd.DataFrame] = None
+    canonical_df: Optional[pd.DataFrame] = None
 
     date_col: Optional[str] = None
     title_col: Optional[str] = None
@@ -22,6 +23,9 @@ class AppState:
     url_col: Optional[str] = None
 
     period_unit: str = "month"
+    time_grain: str = "month"
+    selected_dims: list[str] = field(default_factory=list)
+    schema_mapping: Dict[str, Any] = field(default_factory=dict)
 
     pivot_df: Optional[pd.DataFrame] = None
     verbatim_df: Optional[pd.DataFrame] = None
@@ -47,6 +51,8 @@ class AppState:
     audit_report_df: Optional[pd.DataFrame] = None
     audit_snippets_df: Optional[pd.DataFrame] = None
     empty_doc_report_df: Optional[pd.DataFrame] = None
+    schema_mapping_df: Optional[pd.DataFrame] = None
+    canonical_export_df: Optional[pd.DataFrame] = None
 
     export_sheet_flags: Dict[str, bool] = field(default_factory=dict)
     logs: List[Dict[str, Any]] = field(default_factory=list)

@@ -13,6 +13,8 @@ SHEET_MAPPING = {
     "raw_original": "raw_df",
     "preprocessed_filtered": "filtered_df",
     "preprocessed_dedup": "dedup_df",
+    "canonical_docs": "canonical_export_df",
+    "schema_mapping": "schema_mapping_df",
     "buzz_pivot": "pivot_df",
     "verbatim": "verbatim_df",
     "token_freq": "freq_df",

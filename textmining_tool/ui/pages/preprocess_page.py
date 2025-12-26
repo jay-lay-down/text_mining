@@ -35,8 +35,11 @@ class PreprocessPage(QWidget):
         self.file_info = QLabel("파일을 업로드하세요")
         self.column_date = QComboBox()
         self.column_title = QComboBox()
-        self.column_text = QComboBox()
+        self.column_text = QListWidget()
+        self.column_text.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
         self.column_page_type = QComboBox()
+        self.dimensions_list = QListWidget()
+        self.dimensions_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
 
         self.page_type_list = QListWidget()
         self.exclude_news_chk = QCheckBox("뉴스 제외")
@@ -60,10 +63,11 @@ class PreprocessPage(QWidget):
 
     def _build_ui(self) -> None:
         form = QFormLayout()
-        form.addRow("Date", self.column_date)
+        form.addRow("Date/시간", self.column_date)
         form.addRow("Title", self.column_title)
-        form.addRow("Full Text", self.column_text)
-        form.addRow("Page Type", self.column_page_type)
+        form.addRow("Text 컬럼(복수 선택)", self.column_text)
+        form.addRow("Source/Page Type", self.column_page_type)
+        form.addRow("분석 축(Dim) 선택", self.dimensions_list)
 
         mapping_box = QGroupBox("컬럼 매핑")
         mapping_box.setLayout(form)
@@ -83,7 +87,7 @@ class PreprocessPage(QWidget):
 
         btn_load = QPushButton("파일 로드")
         btn_load.clicked.connect(self.load_file)
-        btn_apply = QPushButton("적용")
+        btn_apply = QPushButton("적용/스키마 확정")
         btn_apply.clicked.connect(self.apply_preprocess)
 
         layout = QVBoxLayout()
@@ -115,21 +119,45 @@ class PreprocessPage(QWidget):
         self.status_strip.update(len(df), self.app_state.period_unit, self.app_state.runtime_options.get("news_excluded", False))
 
     def _populate_columns(self, columns: List[str]) -> None:
-        for combo in [self.column_date, self.column_title, self.column_text, self.column_page_type]:
-            combo.clear()
-            combo.addItems(columns)
+        self.column_date.clear()
+        self.column_title.clear()
+        self.column_page_type.clear()
+        self.column_date.addItems(columns)
+        self.column_title.addItems(columns)
+        self.column_page_type.addItems(columns)
+        self.column_text.clear()
+        self.dimensions_list.clear()
+        for col in columns:
+            self.column_text.addItem(col)
+            self.dimensions_list.addItem(col)
         self.page_type_list.clear()
 
     def apply_preprocess(self) -> None:
         if self.app_state.raw_df is None:
             return
+        text_cols = [self.column_text.item(i).text() for i in range(self.column_text.count()) if self.column_text.item(i).isSelected()]
+        if not text_cols:
+            text_cols = [self.column_text.item(0).text()] if self.column_text.count() else []
+        df = self.app_state.raw_df
+        # schema mapping and canonical conversion
+        canonical_df, mapping_df = preprocess.build_canonical(
+            df,
+            dt_col=self.column_date.currentText(),
+            text_cols=text_cols,
+            title_col=self.column_title.currentText(),
+            source_type_col=self.column_page_type.currentText(),
+            extra_dims=[self.dimensions_list.item(i).text() for i in range(self.dimensions_list.count()) if self.dimensions_list.item(i).isSelected()],
+        )
+        self.app_state.canonical_df = canonical_df
+        self.app_state.canonical_export_df = canonical_df
+        self.app_state.schema_mapping_df = mapping_df
         mapping = {
             "Date": self.column_date.currentText(),
             "Title": self.column_title.currentText(),
-            "Full Text": self.column_text.currentText(),
+            "Full Text": text_cols[0] if text_cols else self.column_title.currentText(),
             "Page Type": self.column_page_type.currentText(),
         }
-        df = preprocess.map_columns(self.app_state.raw_df, mapping)
+        df = preprocess.map_columns(df, mapping)
         if "Page Type" in df.columns:
             self.page_type_list.clear()
             for val in sorted(df["Page Type"].dropna().unique()):
@@ -147,6 +175,9 @@ class PreprocessPage(QWidget):
         if self.similar_chk.isChecked():
             deduped, similar_removed = preprocess.remove_similar(deduped, threshold=self.similar_slider.value())
             removed = pd.concat([removed, similar_removed])
+        # sync canonical with dedup info
+        if self.app_state.canonical_df is not None:
+            self.app_state.canonical_df = self.app_state.canonical_df[self.app_state.canonical_df["doc_id"].isin(deduped["key"])]
         self.app_state.filtered_df = filtered
         self.app_state.dedup_df = deduped
         self.app_state.runtime_options["page_type_filter"] = selected_types

@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QListWidget,
     QPushButton,
     QTableView,
     QVBoxLayout,
@@ -25,6 +26,8 @@ class BuzzPage(QWidget):
         self.period_combo = QComboBox()
         self.period_combo.addItems(["year", "half", "quarter", "month", "week", "day", "hour"])
         self.include_page_type = QCheckBox("page_type별 보기")
+        self.dim_select = QListWidget()
+        self.dim_select.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
         self.pivot_model = PandasModel(pd.DataFrame())
         self.pivot_table = QTableView()
         self.pivot_table.setModel(self.pivot_model)
@@ -37,6 +40,8 @@ class BuzzPage(QWidget):
         cfg_layout.addWidget(QLabel("기간 단위"))
         cfg_layout.addWidget(self.period_combo)
         cfg_layout.addWidget(self.include_page_type)
+        cfg_layout.addWidget(QLabel("추가 Dim"))
+        cfg_layout.addWidget(self.dim_select)
         btn = QPushButton("피벗 생성")
         btn.clicked.connect(self.generate_pivot)
         cfg_layout.addWidget(btn)
@@ -55,7 +60,9 @@ class BuzzPage(QWidget):
             return
         unit = self.period_combo.currentText()
         self.app_state.period_unit = unit
-        self.app_state.pivot_df = pivot.build_pivot(self.app_state.dedup_df, unit, self.include_page_type.isChecked())
+        dims = [self.dim_select.item(i).text() for i in range(self.dim_select.count()) if self.dim_select.item(i).isSelected()]
+        self.app_state.selected_dims = dims
+        self.app_state.pivot_df = pivot.build_pivot(self.app_state.dedup_df, unit, self.include_page_type.isChecked(), group_dims=dims)
         self.pivot_model.update(self.app_state.pivot_df)
         rows = len(self.app_state.dedup_df)
         self.status_strip.update(rows, unit, self.app_state.runtime_options.get("news_excluded", False))
