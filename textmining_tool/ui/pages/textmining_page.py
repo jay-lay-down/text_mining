@@ -70,6 +70,8 @@ class TextMiningPage(QWidget):
         self.wordcloud_label = QLabel("워드클라우드")
         self.status_strip = StatusStrip()
         self.empty_warning = QLabel("")
+        self._is_running = False
+        self.miner = kiwi_tm.KiwiTextMiner()
         self._build_ui()
 
     def _show_error(self, message: str) -> None:
@@ -131,9 +133,13 @@ class TextMiningPage(QWidget):
         self.setLayout(layout)
 
     def run_textmining(self) -> None:
-        if self.app_state.dedup_df is None:
+        if self._is_running:
             return
-        miner = kiwi_tm.KiwiTextMiner()
+        if self.app_state.dedup_df is None or self.app_state.dedup_df.empty:
+            self._show_error("분석할 데이터가 없습니다. 전처리 후 다시 시도하세요.")
+            return
+        self._is_running = True
+        self.run_btn.setEnabled(False)
         options = {
             "korean_only": self.clean_opts["korean_only"].isChecked(),
             "remove_url": self.clean_opts["remove_url"].isChecked(),
@@ -151,11 +157,18 @@ class TextMiningPage(QWidget):
             "token_min_len": int(self.token_min_len.currentText()),
         }
         try:
-            tokens_df, freq_df, top50_df, monthly_df, audit_df, empty_df = miner.build_tokens(
+            tokens_df, freq_df, top50_df, monthly_df, audit_df, empty_df = self.miner.build_tokens(
                 self.app_state.dedup_df, options, text_source=self.text_source.currentText()
             )
         except Exception as exc:  # noqa: BLE001
             self._show_error(f"텍스트마이닝 중 오류가 발생했습니다: {exc}")
+            self.run_btn.setEnabled(True)
+            self._is_running = False
+            return
+        if tokens_df.empty:
+            self._show_error("토큰이 생성되지 않았습니다. 옵션을 완화하거나 데이터 준비 단계를 확인하세요.")
+            self.run_btn.setEnabled(True)
+            self._is_running = False
             return
         self.app_state.tokens_df = tokens_df
         self.app_state.freq_df = freq_df
@@ -177,6 +190,8 @@ class TextMiningPage(QWidget):
         if tokens_flat:
             try:
                 font_to_use = str(font_path) if font_path.exists() else None
+                if font_to_use is None:
+                    font_to_use = str(wc.resource_path("assets/fonts/NanumGothic.ttf"))
                 wc.generate_wordcloud(tokens_flat, font_to_use, output_path)
                 self.wordcloud_label.setText("")
                 pixmap = QPixmap(str(output_path))
@@ -197,3 +212,5 @@ class TextMiningPage(QWidget):
         self.empty_warning.setText(warn_text)
         self.status_strip.update(len(tokens_df), self.app_state.period_unit, self.app_state.runtime_options.get("news_excluded", False))
         self.app_state.update_log("textmining", "completed", {"tokens": len(freq_df)})
+        self.run_btn.setEnabled(True)
+        self._is_running = False
