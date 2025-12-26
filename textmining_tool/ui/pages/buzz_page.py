@@ -53,7 +53,6 @@ class BuzzPage(QWidget):
         layout.addWidget(config_box)
         layout.addWidget(self.pivot_table)
         layout.addWidget(self.status_strip)
-        layout.addStretch()
         self.setLayout(layout)
 
     def generate_pivot(self) -> None:
@@ -63,7 +62,13 @@ class BuzzPage(QWidget):
         self.app_state.period_unit = unit
         dims = [self.dim_select.item(i).text() for i in range(self.dim_select.count()) if self.dim_select.item(i).isSelected()]
         self.app_state.selected_dims = dims
-        self.app_state.pivot_df = pivot.build_pivot(self.app_state.dedup_df, unit, self.include_page_type.isChecked(), group_dims=dims)
+        self.app_state.pivot_df = pivot.build_pivot(
+            self.app_state.dedup_df,
+            unit,
+            self.include_page_type.isChecked(),
+            group_dims=dims,
+            dt_col=self.app_state.date_col,
+        )
         self.pivot_model.update(self.app_state.pivot_df)
         rows = len(self.app_state.dedup_df)
         self.status_strip.update(rows, unit, self.app_state.runtime_options.get("news_excluded", False))

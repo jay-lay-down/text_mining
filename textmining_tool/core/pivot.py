@@ -14,9 +14,19 @@ _PERIOD_FORMATS = {
 }
 
 
-def add_period_column(df: pd.DataFrame, unit: str, dt_col: str = "Date") -> pd.DataFrame:
-    if dt_col not in df.columns:
-        raise ValueError("Date column missing for period derivation")
+def detect_dt_col(df: pd.DataFrame) -> str | None:
+    candidates = ["Date", "date", "datetime", "dt", "작성일", "등록일", "게시일", "time", "timestamp"]
+    for col in candidates:
+        if col in df.columns:
+            return col
+    return None
+
+
+def add_period_column(df: pd.DataFrame, unit: str, dt_col: str | None = "Date") -> pd.DataFrame:
+    if dt_col is None or dt_col not in df.columns:
+        dt_col = detect_dt_col(df)
+    if dt_col is None or dt_col not in df.columns:
+        raise ValueError(f"Date column missing for period derivation. Available: {list(df.columns)}")
     if df[dt_col].isna().all():
         raise ValueError("Date column is empty after parsing")
     unit = unit.lower()
@@ -33,7 +43,7 @@ def add_period_column(df: pd.DataFrame, unit: str, dt_col: str = "Date") -> pd.D
     return result
 
 
-def build_pivot(df: pd.DataFrame, unit: str, include_page_type: bool, group_dims: list[str] | None = None, dt_col: str = "Date") -> pd.DataFrame:
+def build_pivot(df: pd.DataFrame, unit: str, include_page_type: bool, group_dims: list[str] | None = None, dt_col: str | None = "Date") -> pd.DataFrame:
     enriched = add_period_column(df, unit, dt_col=dt_col)
     group_dims = group_dims or []
     group_cols = ["period"] + group_dims

@@ -175,6 +175,7 @@ class PreprocessPage(QWidget):
             "Page Type": self.column_page_type.currentText(),
         }
         df = preprocess.map_columns(df, mapping)
+        self.app_state.date_col = self.column_date.currentText()
         if "Page Type" in df.columns:
             self.page_type_list.clear()
             for val in sorted(df["Page Type"].dropna().unique()):
