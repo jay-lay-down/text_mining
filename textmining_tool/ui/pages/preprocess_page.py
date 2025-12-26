@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
+    QGridLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
@@ -99,12 +100,19 @@ class PreprocessPage(QWidget):
         load_bar.addWidget(btn_browse)
         load_bar.addStretch()
 
+        top_grid = QGridLayout()
+        top_grid.addWidget(mapping_box, 0, 0, 1, 2)
+        top_grid.addWidget(page_type_box, 1, 0)
+        top_grid.addWidget(duplicate_box, 1, 1)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        btn_row.addWidget(btn_apply)
+
         layout = QVBoxLayout()
         layout.addLayout(load_bar)
-        layout.addWidget(mapping_box)
-        layout.addWidget(page_type_box)
-        layout.addWidget(duplicate_box)
-        layout.addWidget(btn_apply)
+        layout.addLayout(top_grid)
+        layout.addLayout(btn_row)
         layout.addWidget(QLabel("미리보기"))
         layout.addWidget(self.preview_table)
         layout.addWidget(QLabel("제거된 중복"))
