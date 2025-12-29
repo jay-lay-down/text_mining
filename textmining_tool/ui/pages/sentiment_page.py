@@ -6,6 +6,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 from PyQt6.QtGui import QPixmap
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QComboBox,
     QFormLayout,
@@ -39,17 +40,24 @@ class SentimentPage(QWidget):
         self.app_state = app_state
         self.api_key_edit = QLineEdit()
         self.api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.api_key_edit.setMinimumWidth(420)
         self.profanity_mode = QComboBox()
         self.profanity_mode.addItems(["ONCE_FIXED", "COUNT_ACCUM", "COUNT_CAP_TO_2"])
+        self.profanity_mode.setMinimumWidth(220)
         self.profanity_scope = QComboBox()
         self.profanity_scope.addItems(["CLEAN_TEXT_ONLY", "RAW_TEXT_ONLY", "BOTH"])
+        self.profanity_scope.setMinimumWidth(220)
         self.profanity_delta = QComboBox()
         self.profanity_delta.addItems(["-1", "-2"])
+        self.profanity_delta.setMinimumWidth(220)
         self.context_mode = QComboBox()
         self.context_mode.addItems(["CONTEXT_AWARE", "ALWAYS_PENALIZE"])
+        self.context_mode.setMinimumWidth(220)
         self.profanity_list = QTextEdit()
+        self.profanity_list.setMinimumHeight(80)
         self.min_sentence_len = QComboBox()
         self.min_sentence_len.addItems(["3", "5", "8"])
+        self.min_sentence_len.setMinimumWidth(120)
 
         self.sentiment_model = PandasModel(pd.DataFrame())
         self.sentiment_table = QTableView()
@@ -67,7 +75,9 @@ class SentimentPage(QWidget):
 
     def _build_ui(self) -> None:
         form = QFormLayout()
-        form.setVerticalSpacing(6)
+        form.setVerticalSpacing(10)
+        form.setHorizontalSpacing(14)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         form.addRow("Gemini API Key", self.api_key_edit)
         form.addRow("욕설 모드", self.profanity_mode)
         form.addRow("욕설 스코프", self.profanity_scope)
@@ -77,7 +87,7 @@ class SentimentPage(QWidget):
         form.addRow("욕설 리스트", self.profanity_list)
         cfg_box = QGroupBox("감성 설정")
         cfg_box.setLayout(form)
-        cfg_box.setMaximumHeight(260)
+        cfg_box.setMinimumWidth(960)
 
         btn = QPushButton("실행")
         btn.clicked.connect(self.run_sentiment)
@@ -135,7 +145,7 @@ class SentimentPage(QWidget):
                 QMessageBox.warning(self, "감성 분석", "문장 단위 텍스트가 없습니다. 옵션을 완화하거나 데이터를 확인하세요.")
                 return
             gemini_results = []
-            evidence_df = pd.DataFrame()
+            evidence_df = pd.DataFrame(columns=["key", "phrase", "type", "strength", "aspect", "target"])
             if api_key:
                 try:
                     gemini_results = gemini_client.run_gemini(api_key, [(row["sent_id"], row["sentence_clean"]) for _, row in sentence_df.iterrows()])
@@ -174,9 +184,10 @@ class SentimentPage(QWidget):
                 except Exception as exc:  # noqa: BLE001
                     QMessageBox.warning(self, "유해성 스캔 실패", f"유해성 스캔 중 오류가 발생했습니다. 감성만 계속합니다.\n{exc}")
             # key가 없으면 sent_id로 대체
+            key_series = sentence_df["key"].fillna(sentence_df["sent_id"])
             base_df = pd.DataFrame(
                 {
-                    "key": sentence_df.get("key", sentence_df["sent_id"]),
+                    "key": key_series,
                     "clean_text": sentence_df["sentence_clean"],
                     "raw_text": sentence_df["sentence_clean"],
                     "summary_ko": [g.get("summary_ko", "") for g in gemini_results] if gemini_results else [""] * len(sentence_df),

@@ -97,6 +97,10 @@ def build_sentiment_df(
     toxicity_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     engine = RuleEngine(rules.get("profanity_fixed_list", []))
+    if evidence_df is None or evidence_df.empty:
+        evidence_df = pd.DataFrame(columns=["key", "phrase", "type", "strength", "aspect", "target"])
+    if "key" not in evidence_df.columns:
+        evidence_df["key"] = []
     results = []
     for _, row in df.iterrows():
         evidences = evidence_df[evidence_df["key"] == row.get("key")]

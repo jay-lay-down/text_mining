@@ -103,7 +103,6 @@ DEFAULT_EXPORT_SHEETS = [
     "sentiment_sentence",
     "sentiment_doc",
     "sentiment_month",
-    "apriori_rules",
     "network_nodes",
     "network_edges",
     "audit_report",

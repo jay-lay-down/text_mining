@@ -26,7 +26,6 @@ SHEET_MAPPING = {
     "audit_report": "audit_report_df",
     "audit_snippets": "audit_snippets_df",
     "empty_doc_report": "empty_doc_report_df",
-    "apriori_rules": "rules_df",
     "network_nodes": "nodes_df",
     "network_edges": "edges_df",
     "logs": "logs",
