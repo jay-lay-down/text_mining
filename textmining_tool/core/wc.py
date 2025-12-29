@@ -3,16 +3,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterable, Optional
 import sys
-import os
 
 from wordcloud import WordCloud
-import traceback
 
 
-def resource_path(relative: str) -> Path:
+def resource_path(*parts: str) -> Path:
     """Return absolute path for resources (handles PyInstaller _MEIPASS)."""
-    base_path = getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2])
-    return Path(base_path) / relative
+    base_path = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
+    return base_path.joinpath(*parts) if parts else base_path
 
 
 def generate_wordcloud(tokens: Iterable[str], font_path: Optional[str], output_path: str | Path) -> Path:
@@ -29,11 +27,20 @@ def generate_wordcloud(tokens: Iterable[str], font_path: Optional[str], output_p
     candidate_paths = []
     if font_path:
         candidate_paths.append(Path(font_path))
-    candidate_paths.append(resource_path("assets/fonts/NanumGothic.ttf"))
+    candidate_paths.append(resource_path("assets", "fonts", "NanumGothic.ttf"))
+    chosen_font = None
     for cand in candidate_paths:
         if cand and cand.exists():
-            kwargs["font_path"] = str(cand)
+            chosen_font = str(cand)
             break
+
+    if not chosen_font:
+        raise FileNotFoundError(
+            "한글 폰트 파일(NanumGothic.ttf)을 찾을 수 없습니다. "
+            "assets/fonts 경로나 번들 포함 여부를 확인하세요."
+        )
+
+    kwargs["font_path"] = chosen_font
 
     try:
         wc = WordCloud(**kwargs)
@@ -41,15 +48,7 @@ def generate_wordcloud(tokens: Iterable[str], font_path: Optional[str], output_p
         wc.to_file(output_path)
         return output_path
     except Exception:
-        # 폰트가 깨졌을 때 기본 폰트로 재시도
-        kwargs.pop("font_path", None)
-        try:
-            wc = WordCloud(**kwargs)
-            wc.generate(" ".join(tokens_list))
-            wc.to_file(output_path)
-            return output_path
-        except Exception as exc:  # noqa: BLE001
-            raise RuntimeError(f"워드클라우드 생성 실패: {exc}") from exc
+        raise RuntimeError("워드클라우드 생성 실패: 폰트 적용 중 오류가 발생했습니다.")
 
 
 def generate_wordcloud_from_freq(freqs: dict[str, int], font_path: Optional[str], output_path: str | Path) -> Path:
@@ -65,23 +64,25 @@ def generate_wordcloud_from_freq(freqs: dict[str, int], font_path: Optional[str]
     candidate_paths = []
     if font_path:
         candidate_paths.append(Path(font_path))
-    candidate_paths.append(resource_path("assets/fonts/NanumGothic.ttf"))
+    candidate_paths.append(resource_path("assets", "fonts", "NanumGothic.ttf"))
     chosen_font = None
     for cand in candidate_paths:
         if cand and cand.exists():
             chosen_font = str(cand)
             break
-    if chosen_font:
-        kwargs["font_path"] = chosen_font
 
-    errors: list[str] = []
-    for attempt in range(2):
-        try:
-            wc = WordCloud(**kwargs)
-            wc.generate_from_frequencies(freqs)
-            wc.to_file(output_path)
-            return output_path
-        except Exception as exc:  # noqa: BLE001
-            errors.append(f"attempt {attempt+1}: {exc}")
-            kwargs.pop("font_path", None)
-    raise RuntimeError("워드클라우드 생성 실패: " + " | ".join(errors))
+    if not chosen_font:
+        raise FileNotFoundError(
+            "한글 폰트 파일(NanumGothic.ttf)을 찾을 수 없습니다. "
+            "assets/fonts 경로나 번들 포함 여부를 확인하세요."
+        )
+
+    kwargs["font_path"] = chosen_font
+
+    try:
+        wc = WordCloud(**kwargs)
+        wc.generate_from_frequencies(freqs)
+        wc.to_file(output_path)
+        return output_path
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(f"워드클라우드 생성 실패: {exc}") from exc

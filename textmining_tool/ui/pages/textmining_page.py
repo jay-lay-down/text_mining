@@ -288,9 +288,10 @@ class TextMiningPage(QWidget):
             for lbl in self.wordcloud_labels.values():
                 lbl.setText("모든 토큰이 제외되었습니다.")
             return
-        assets_dir = Path(__file__).resolve().parents[2] / "assets"
+        assets_dir = wc.resource_path("assets")
         assets_dir.mkdir(parents=True, exist_ok=True)
-        font_path = assets_dir / "fonts" / "NanumGothic.ttf"
+        font_path = wc.resource_path("assets", "fonts", "NanumGothic.ttf")
+        font_path.parent.mkdir(parents=True, exist_ok=True)
         missing_font = not font_path.exists()
         for top_n, lbl in self.wordcloud_labels.items():
             freq_subset = dict(list(filtered.items())[:top_n])
@@ -308,7 +309,10 @@ class TextMiningPage(QWidget):
                 lbl.setText(f"워드클라우드 생성 실패: {exc}")
                 self._show_error(f"워드클라우드 생성 실패 (Top {top_n}): {exc}\n\n{detail}")
         if missing_font:
-            self._show_error("한글 폰트가 없어 글자가 깨질 수 있습니다. assets/fonts/NanumGothic.ttf 위치를 확인하세요.")
+            self._show_error(
+                "한글 폰트가 없어 글자가 깨질 수 있습니다. "
+                "assets/fonts/NanumGothic.ttf 위치를 확인하거나 PyInstaller 번들을 점검하세요."
+            )
 
     def _open_wc_popup(self) -> None:
         current_idx = self.wordcloud_tabs.currentIndex()
