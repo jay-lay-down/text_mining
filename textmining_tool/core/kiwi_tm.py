@@ -23,8 +23,15 @@ _CRY_RE = re.compile(r"[ㅠㅜ]{2,}")
 
 class KiwiTextMiner:
     def __init__(self, stopwords: Iterable[str] | None = None) -> None:
-        self.kiwi = Kiwi()
+        # Kiwi 초기화가 실패하거나 무거울 수 있으므로 지연 로딩
+        self._kiwi: Kiwi | None = None
         self.stopwords = set(stopwords or []).union(DEFAULT_STOPWORDS)
+
+    @property
+    def kiwi(self) -> Kiwi:
+        if self._kiwi is None:
+            self._kiwi = Kiwi()
+        return self._kiwi
 
     def clean(self, text: str, options: Dict[str, any]) -> str:
         clean_text = text or ""
@@ -58,6 +65,10 @@ class KiwiTextMiner:
             accepted = {"NNG", "NNP", "VA", "VV", "XR", "MAG"}
         return [t.form for t in tokens if t.tag in accepted]
 
+    def simple_tokenize(self, text: str, min_len: int) -> List[str]:
+        """Kiwi 대안: 정규식 기반 단순 한글 토큰화(의존성/세그폴트 대비)."""
+        return re.findall(rf"[가-힣]{{{min_len},}}", text)
+
     def _filter_pure_korean(self, tokens: List[str], min_len: int = 2) -> Tuple[List[str], List[str]]:
         filtered: List[str] = []
         leaked: List[str] = []
@@ -76,7 +87,7 @@ class KiwiTextMiner:
         df: pd.DataFrame,
         options: Dict[str, any],
         text_source: str = "both",
-    ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         if df.empty:
             return df, df, df, df, df
         rows = []
@@ -85,6 +96,7 @@ class KiwiTextMiner:
         leaked_counter: Counter[str] = Counter()
         empty_clean_rows = []
         empty_token_rows = []
+        analyzer = options.get("analyzer", "kiwi")
         for _, row in df.iterrows():
             if text_source == "title":
                 base_text = row.get("Title", "")
@@ -93,7 +105,16 @@ class KiwiTextMiner:
             else:
                 base_text = f"{row.get('Title','')} {row.get('Full Text','')}"
             clean_text = self.clean(str(base_text), options)
-            tokens_raw = [t for t in self.tokenize(clean_text, options.get("pos", "noun")) if len(t) >= options.get("min_length", 2)]
+            try:
+                if analyzer == "simple":
+                    tokens_raw = [t for t in self.simple_tokenize(clean_text, options.get("min_length", 2))]
+                else:
+                    tokens_raw = [
+                        t for t in self.tokenize(clean_text, options.get("pos", "noun")) if len(t) >= options.get("min_length", 2)
+                    ]
+            except Exception:
+                # Kiwi 오류 발생 시 간단 토크나이저로 폴백해 크래시 방지
+                tokens_raw = [t for t in self.simple_tokenize(clean_text, options.get("min_length", 2))]
             if options.get("stopwords"):
                 user_stop = {w.strip() for w in options["stopwords"].splitlines() if w.strip()}
                 stopset = self.stopwords.union(user_stop)

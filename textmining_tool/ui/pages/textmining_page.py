@@ -49,6 +49,8 @@ class TextMiningPage(QWidget):
         self.min_freq.addItems(["1", "2", "3", "5", "10"])
         self.text_source = QComboBox()
         self.text_source.addItems(["both", "title", "full"])
+        self.analyzer = QComboBox()
+        self.analyzer.addItems(["Kiwi (정밀)", "간단 토큰(한글만)"])
         self.pos_mode = QComboBox()
         self.pos_mode.addItems(["noun", "noun+adj+verb"])
         self.stopwords_edit = QTextEdit()
@@ -80,18 +82,21 @@ class TextMiningPage(QWidget):
     def _build_ui(self) -> None:
         form = QFormLayout()
         form.addRow("텍스트 소스", self.text_source)
+        form.addRow("토크나이저", self.analyzer)
         form.addRow("품사", self.pos_mode)
         form.addRow("최소 빈도", self.min_freq)
         form.addRow("최소 글자수", self.token_min_len)
 
         sw_box = QGroupBox("불용어 (줄바꿈)")
         sw_layout = QVBoxLayout()
-        self.stopwords_edit.setFixedHeight(80)
+        self.stopwords_edit.setFixedHeight(60)
         sw_layout.addWidget(self.stopwords_edit)
         sw_box.setLayout(sw_layout)
 
         clean_box = QGroupBox("전처리 옵션")
         opt_grid = QGridLayout()
+        opt_grid.setHorizontalSpacing(10)
+        opt_grid.setVerticalSpacing(6)
         opts = list(self.clean_opts.values())
         for idx, opt in enumerate(opts):
             opt_grid.addWidget(opt, idx // 2, idx % 2)
@@ -156,6 +161,7 @@ class TextMiningPage(QWidget):
             "min_length": int(self.token_min_len.currentText()),
             "strict_korean_only": self.clean_opts["strict_korean_only"].isChecked(),
             "token_min_len": int(self.token_min_len.currentText()),
+            "analyzer": "simple" if self.analyzer.currentIndex() == 1 else "kiwi",
         }
         try:
             tokens_df, freq_df, top50_df, monthly_df, audit_df, empty_df = self.miner.build_tokens(

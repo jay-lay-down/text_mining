@@ -15,12 +15,26 @@ def resource_path(relative: str) -> Path:
 
 
 def generate_wordcloud(tokens: Iterable[str], font_path: Optional[str], output_path: str | Path) -> Path:
-    text = " ".join(tokens)
-    kwargs = {"width": 800, "height": 600, "background_color": "white"}
-    if font_path and os.path.exists(font_path):
-        kwargs["font_path"] = str(font_path)
-    wc = WordCloud(**kwargs)
-    wc.generate(text)
+    tokens_list = [str(t) for t in tokens if str(t).strip()]
+    if not tokens_list:
+        raise ValueError("워드클라우드를 생성할 토큰이 없습니다.")
+
     output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    kwargs = {"width": 800, "height": 600, "background_color": "white"}
+
+    # Prefer provided font_path, otherwise fall back to bundled NanumGothic (PyInstaller-safe).
+    candidate_paths = []
+    if font_path:
+        candidate_paths.append(Path(font_path))
+    candidate_paths.append(resource_path("assets/fonts/NanumGothic.ttf"))
+    for cand in candidate_paths:
+        if cand and cand.exists():
+            kwargs["font_path"] = str(cand)
+            break
+
+    wc = WordCloud(**kwargs)
+    wc.generate(" ".join(tokens_list))
     wc.to_file(output_path)
     return output_path

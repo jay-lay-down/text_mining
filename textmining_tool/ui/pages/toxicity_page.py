@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
     QPushButton,
     QTableView,
     QTextEdit,
@@ -56,12 +57,14 @@ class ToxicityPage(QWidget):
 
     def _build_ui(self) -> None:
         form = QFormLayout()
+        form.setVerticalSpacing(6)
         form.addRow("텍스트 모드", self.text_mode)
         form.addRow("Context 모드", self.context_mode)
         for role, combo in self.role_delta_inputs.items():
             form.addRow(f"{role} delta", combo)
         form_box = QGroupBox("역할/감점 설정")
         form_box.setLayout(form)
+        form_box.setMaximumHeight(220)
 
         dict_box = QGroupBox("사전 편집")
         dict_layout = QVBoxLayout()
@@ -78,6 +81,7 @@ class ToxicityPage(QWidget):
         dict_layout.addWidget(QLabel("화이트리스트 패턴"))
         dict_layout.addWidget(self.whitelist)
         dict_box.setLayout(dict_layout)
+        dict_box.setMaximumHeight(240)
 
         run_btn = QPushButton("유해성 스캔 실행")
         run_btn.clicked.connect(self.run_scan)
@@ -101,33 +105,39 @@ class ToxicityPage(QWidget):
         self.setLayout(layout)
 
     def run_scan(self) -> None:
-        if self.app_state.dedup_df is None:
+        if (self.app_state.tokens_df is None or self.app_state.tokens_df.empty) and (
+            self.app_state.dedup_df is None or self.app_state.dedup_df.empty
+        ):
+            QMessageBox.warning(self, "유해성 스캔", "분석할 데이터가 없습니다. 전처리/텍스트마이닝을 먼저 실행하세요.")
             return
-        dictionaries = {
-            "PROFANITY_TOKENS": [l.strip() for l in self.profanity_tokens.toPlainText().splitlines() if l.strip()],
-            "POS_CUES": [l.strip() for l in self.pos_cues.toPlainText().splitlines() if l.strip()],
-            "NEG_CUES": [l.strip() for l in self.neg_cues.toPlainText().splitlines() if l.strip()],
-            "TARGET_CUES": [l.strip() for l in self.target_cues.toPlainText().splitlines() if l.strip()],
-            "INSULT_SUFFIX": [l.strip() for l in self.insult_suffix.toPlainText().splitlines() if l.strip()],
-            "SLUR_HATE": toxicity.DEFAULT_DICTS.get("SLUR_HATE", []),
-            "EMO_POS": toxicity.DEFAULT_DICTS.get("EMO_POS", []),
-        }
-        role_to_delta = {role: int(combo.currentText()) for role, combo in self.role_delta_inputs.items()}
-        whitelist = [l.strip() for l in self.whitelist.toPlainText().splitlines() if l.strip()]
-        text_col = "clean_text" if self.text_mode.currentText() == "clean_text" else "Full Text"
-        target_df = self.app_state.tokens_df if self.app_state.tokens_df is not None else self.app_state.dedup_df
-        detail_df, summary_df = toxicity.scan_dataframe(
-            target_df,
-            text_col=text_col,
-            dictionaries=dictionaries,
-            whitelist=whitelist,
-            context_mode=self.context_mode.currentText(),
-            role_to_delta=role_to_delta,
-        )
-        self.app_state.toxicity_detail_df = detail_df
-        self.app_state.toxicity_summary_df = summary_df
-        self.table_model.update(detail_df)
-        self.summary_model.update(summary_df)
-        rows = len(detail_df)
-        self.status_strip.update(rows, self.app_state.period_unit, self.app_state.runtime_options.get("news_excluded", False))
-        self.app_state.update_log("toxicity", "completed", {"rows": rows})
+        try:
+            dictionaries = {
+                "PROFANITY_TOKENS": [l.strip() for l in self.profanity_tokens.toPlainText().splitlines() if l.strip()],
+                "POS_CUES": [l.strip() for l in self.pos_cues.toPlainText().splitlines() if l.strip()],
+                "NEG_CUES": [l.strip() for l in self.neg_cues.toPlainText().splitlines() if l.strip()],
+                "TARGET_CUES": [l.strip() for l in self.target_cues.toPlainText().splitlines() if l.strip()],
+                "INSULT_SUFFIX": [l.strip() for l in self.insult_suffix.toPlainText().splitlines() if l.strip()],
+                "SLUR_HATE": toxicity.DEFAULT_DICTS.get("SLUR_HATE", []),
+                "EMO_POS": toxicity.DEFAULT_DICTS.get("EMO_POS", []),
+            }
+            role_to_delta = {role: int(combo.currentText()) for role, combo in self.role_delta_inputs.items()}
+            whitelist = [l.strip() for l in self.whitelist.toPlainText().splitlines() if l.strip()]
+            text_col = "clean_text" if self.text_mode.currentText() == "clean_text" else "Full Text"
+            target_df = self.app_state.tokens_df if self.app_state.tokens_df is not None else self.app_state.dedup_df
+            detail_df, summary_df = toxicity.scan_dataframe(
+                target_df,
+                text_col=text_col,
+                dictionaries=dictionaries,
+                whitelist=whitelist,
+                context_mode=self.context_mode.currentText(),
+                role_to_delta=role_to_delta,
+            )
+            self.app_state.toxicity_detail_df = detail_df
+            self.app_state.toxicity_summary_df = summary_df
+            self.table_model.update(detail_df)
+            self.summary_model.update(summary_df)
+            rows = len(detail_df)
+            self.status_strip.update(rows, self.app_state.period_unit, self.app_state.runtime_options.get("news_excluded", False))
+            self.app_state.update_log("toxicity", "completed", {"rows": rows})
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "유해성 스캔 오류", f"유해성 스캔 중 오류가 발생했습니다: {exc}")

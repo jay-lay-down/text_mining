@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -12,6 +13,7 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
     QPushButton,
     QSlider,
     QSpinBox,
@@ -118,28 +120,45 @@ class NetworkPage(QWidget):
         self.setLayout(layout)
 
     def run_analysis(self) -> None:
-        if self.app_state.tokens_df is None:
+        if self.app_state.tokens_df is None or self.app_state.tokens_df.empty:
+            QMessageBox.warning(self, "연관/네트워크", "텍스트마이닝 결과가 없습니다. 먼저 텍스트마이닝을 실행하세요.")
             return
-        token_sets = self.app_state.tokens_df["tokens"].tolist()
-        if self.mode_combo.currentText() == "Apriori":
-            rules_df = association.apriori_rules(token_sets, self.min_support.value(), self.min_conf.value(), self.min_lift.value())
-            self.app_state.rules_df = rules_df
-            self.rules_model.update(rules_df)
-        else:
-            nodes_df, edges_df = network.build_cooccurrence_network(token_sets, self.min_edge.value())
-            self.app_state.nodes_df = nodes_df
-            self.app_state.edges_df = edges_df
-            self.nodes_model.update(nodes_df)
-            self.edges_model.update(edges_df)
-            if not nodes_df.empty:
-                assets_dir = Path(__file__).resolve().parents[2] / "assets"
-                assets_dir.mkdir(parents=True, exist_ok=True)
-                html_path = assets_dir / "network.html"
-                network.render_pyvis_html(nodes_df, edges_df, html_path)
-                self.app_state.pyvis_html_path = html_path
-                from PyQt6.QtCore import QUrl
-
-                self.web_view.setUrl(QUrl.fromLocalFile(str(html_path)))
-        rows = len(self.app_state.dedup_df) if self.app_state.dedup_df is not None else 0
-        self.status_strip.update(rows, self.app_state.period_unit, self.app_state.runtime_options.get("news_excluded", False))
-        self.app_state.update_log("network", "completed")
+        try:
+            token_sets = self.app_state.tokens_df["tokens"].tolist()
+            if self.mode_combo.currentText() == "Apriori":
+                rules_df = association.apriori_rules(token_sets, self.min_support.value(), self.min_conf.value(), self.min_lift.value())
+                self.app_state.rules_df = rules_df
+                self.rules_model.update(rules_df)
+            else:
+                nodes_df, edges_df = network.build_cooccurrence_network(
+                    token_sets,
+                    self.min_edge.value(),
+                    score_method=self.edge_score.currentText(),
+                    min_n11=self.edge_threshold.value(),
+                    top_edge_pct=self.top_edge_pct.value(),
+                    tightness=self.layout_tightness.value(),
+                    hide_isolates=self.hide_isolates.isChecked(),
+                )
+                self.app_state.nodes_df = nodes_df
+                self.app_state.edges_df = edges_df
+                self.nodes_model.update(nodes_df)
+                self.edges_model.update(edges_df)
+                if not nodes_df.empty:
+                    assets_dir = Path(__file__).resolve().parents[2] / "assets"
+                    assets_dir.mkdir(parents=True, exist_ok=True)
+                    html_path = assets_dir / "network.html"
+                    network.render_pyvis_html(
+                        nodes_df,
+                        edges_df,
+                        html_path,
+                        avoid_overlap=self.avoid_overlap.isChecked(),
+                        hide_isolates=self.hide_isolates.isChecked(),
+                        tightness=self.layout_tightness.value(),
+                    )
+                    self.app_state.pyvis_html_path = html_path
+                    self.web_view.setUrl(QUrl.fromLocalFile(str(html_path)))
+            rows = len(self.app_state.dedup_df) if self.app_state.dedup_df is not None else 0
+            self.status_strip.update(rows, self.app_state.period_unit, self.app_state.runtime_options.get("news_excluded", False))
+            self.app_state.update_log("network", "completed")
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "연관/네트워크 오류", f"네트워크 생성 중 오류가 발생했습니다: {exc}")
