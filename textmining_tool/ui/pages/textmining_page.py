@@ -5,14 +5,18 @@ from pathlib import Path
 
 import pandas as pd
 from PyQt6.QtGui import QPixmap
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDialog,
     QFormLayout,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QListWidget,
+    QListWidgetItem,
     QPushButton,
     QTableView,
     QTextEdit,
@@ -55,6 +59,11 @@ class TextMiningPage(QWidget):
         self.pos_mode.addItems(["noun", "noun+adj+verb"])
         self.stopwords_edit = QTextEdit()
         self.custom_drop_edit = QTextEdit()
+        self.wordcloud_topn = QComboBox()
+        self.wordcloud_topn.addItems(["30", "50", "100", "200"])
+        self.token_exclude_list = QListWidget()
+        self.token_exclude_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
+        self.token_exclude_list.setFixedHeight(140)
         self.token_min_len = QComboBox()
         self.token_min_len.addItems(["1", "2", "3", "4"])
 
@@ -72,10 +81,12 @@ class TextMiningPage(QWidget):
 
         self.wordcloud_label = QLabel("")
         self.wordcloud_label.setMinimumHeight(240)
+        self.wordcloud_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_strip = StatusStrip()
         self.empty_warning = QLabel("")
         self._is_running = False
         self.miner = kiwi_tm.KiwiTextMiner()
+        self._last_wc_freqs: dict[str, int] = {}
         self._build_ui()
 
     def _show_error(self, message: str) -> None:
@@ -131,6 +142,17 @@ class TextMiningPage(QWidget):
         top_grid.addLayout(form, 1, 0, 1, 3)
         top_grid.addLayout(controls, 2, 0, 1, 2)
 
+        wc_controls = QHBoxLayout()
+        wc_controls.addWidget(QLabel("워드클라우드 Top N"))
+        wc_controls.addWidget(self.wordcloud_topn)
+        wc_controls.addStretch()
+        self.btn_wc_refresh = QPushButton("워드클라우드 업데이트")
+        self.btn_wc_refresh.clicked.connect(self._render_wordcloud_from_state)
+        self.btn_wc_popup = QPushButton("팝업으로 보기")
+        self.btn_wc_popup.clicked.connect(self._open_wc_popup)
+        wc_controls.addWidget(self.btn_wc_refresh)
+        wc_controls.addWidget(self.btn_wc_popup)
+
         results_row = QHBoxLayout()
         left_col = QVBoxLayout()
         left_col.addWidget(QLabel("Top 50"))
@@ -140,8 +162,10 @@ class TextMiningPage(QWidget):
         right_col = QVBoxLayout()
         right_col.addWidget(QLabel("전체 빈도"))
         right_col.addWidget(self.freq_table)
+        right_col.addWidget(QLabel("워드클라우드 제외 토큰(체크해서 제외)"))
+        right_col.addWidget(self.token_exclude_list)
         wc_box = QVBoxLayout()
-        wc_box.addWidget(QLabel("워드클라우드"))
+        wc_box.addLayout(wc_controls)
         wc_box.addWidget(self.wordcloud_label)
         right_col.addLayout(wc_box)
         results_row.addLayout(left_col, 1)
@@ -204,29 +228,9 @@ class TextMiningPage(QWidget):
         self.top50_model.update(top50_df)
         self.freq_model.update(freq_df)
         self.monthly_model.update(monthly_df)
-        tokens_flat = []
-        if not tokens_df.empty and "tokens" in tokens_df.columns:
-            for token_list in tokens_df["tokens"]:
-                tokens_flat.extend(token_list)
-        assets_dir = Path(__file__).resolve().parents[2] / "assets"
-        assets_dir.mkdir(parents=True, exist_ok=True)
-        font_path = assets_dir / "fonts" / "NanumGothic.ttf"
-        output_path = assets_dir / "wordcloud.png"
-        if tokens_flat:
-            try:
-                font_to_use = str(font_path) if font_path.exists() else None
-                if font_to_use is None:
-                    font_to_use = str(wc.resource_path("assets/fonts/NanumGothic.ttf"))
-                wc.generate_wordcloud(tokens_flat, font_to_use, output_path)
-                self.wordcloud_label.setText("")
-                pixmap = QPixmap(str(output_path))
-                self.wordcloud_label.setPixmap(pixmap)
-            except Exception as exc:  # noqa: BLE001
-                detail = traceback.format_exc()
-                self.wordcloud_label.setText(f"워드클라우드 생성 실패: {exc}")
-                self._show_error(f"워드클라우드 생성 실패: {exc}\n\n{detail}")
-        else:
-            self.wordcloud_label.setText("토큰 없음")
+        self._populate_exclude_list(freq_df)
+        self._last_wc_freqs = {r["token"]: int(r["count"]) for _, r in freq_df.iterrows()}
+        self._render_wordcloud_from_state()
         total_docs = len(self.app_state.dedup_df) if self.app_state.dedup_df is not None else 0
         if self.app_state.empty_doc_report_df is not None and not self.app_state.empty_doc_report_df.empty:
             empty_clean = len(self.app_state.empty_doc_report_df[self.app_state.empty_doc_report_df["empty_clean"]])
@@ -238,5 +242,66 @@ class TextMiningPage(QWidget):
         self.empty_warning.setText(warn_text)
         self.status_strip.update(len(tokens_df), self.app_state.period_unit, self.app_state.runtime_options.get("news_excluded", False))
         self.app_state.update_log("textmining", "completed", {"tokens": len(freq_df)})
+
+    def _populate_exclude_list(self, freq_df: pd.DataFrame) -> None:
+        self.token_exclude_list.clear()
+        if freq_df is None or freq_df.empty:
+            return
+        top_tokens = freq_df.head(200)
+        for _, row in top_tokens.iterrows():
+            tok = str(row.get("token", ""))
+            count = int(row.get("count", 0))
+            item = QListWidgetItem(f"{tok} ({count})")
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Unchecked)
+            self.token_exclude_list.addItem(item)
+
+    def _render_wordcloud_from_state(self) -> None:
+        if not self._last_wc_freqs:
+            self.wordcloud_label.setText("워드클라우드 데이터가 없습니다.")
+            return
+        try:
+            top_n = int(self.wordcloud_topn.currentText())
+        except ValueError:
+            top_n = 50
+        excluded = {
+            self.token_exclude_list.item(i).text().split(" (", 1)[0]
+            for i in range(self.token_exclude_list.count())
+            if self.token_exclude_list.item(i).checkState() == Qt.CheckState.Checked
+        }
+        filtered = {t: c for t, c in self._last_wc_freqs.items() if t not in excluded}
+        if not filtered:
+            self.wordcloud_label.setText("모든 토큰이 제외되었습니다.")
+            return
+        freq_subset = dict(list(filtered.items())[:top_n])
+        assets_dir = Path(__file__).resolve().parents[2] / "assets"
+        assets_dir.mkdir(parents=True, exist_ok=True)
+        font_path = assets_dir / "fonts" / "NanumGothic.ttf"
+        output_path = assets_dir / "wordcloud.png"
+        try:
+            font_to_use = str(font_path) if font_path.exists() else None
+            wc.generate_wordcloud_from_freq(freq_subset, font_to_use, output_path)
+            pixmap = QPixmap(str(output_path))
+            self.wordcloud_label.setPixmap(pixmap)
+            self.wordcloud_label.setText("")
+        except Exception as exc:  # noqa: BLE001
+            detail = traceback.format_exc()
+            self.wordcloud_label.setText(f"워드클라우드 생성 실패: {exc}")
+            self._show_error(f"워드클라우드 생성 실패: {exc}\n\n{detail}")
+
+    def _open_wc_popup(self) -> None:
+        pixmap = self.wordcloud_label.pixmap()
+        if pixmap is None:
+            self._show_error("워드클라우드가 아직 생성되지 않았습니다.")
+            return
+        dlg = QDialog(self)
+        dlg.setWindowTitle("워드클라우드 미리보기")
+        layout = QVBoxLayout()
+        lbl = QLabel()
+        lbl.setPixmap(pixmap.scaled(1000, 600, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        layout.addWidget(lbl)
+        dlg.setLayout(layout)
+        dlg.resize(1020, 620)
+        dlg.exec()
         self.run_btn.setEnabled(True)
         self._is_running = False

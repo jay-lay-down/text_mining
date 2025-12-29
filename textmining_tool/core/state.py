@@ -106,8 +106,6 @@ DEFAULT_EXPORT_SHEETS = [
     "apriori_rules",
     "network_nodes",
     "network_edges",
-    "toxicity_detail",
-    "toxicity_summary",
     "audit_report",
     "audit_snippets",
     "empty_doc_report",

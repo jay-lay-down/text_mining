@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import traceback
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -110,11 +111,25 @@ class ToxicityPage(QWidget):
         layout.addStretch()
         self.setLayout(layout)
 
+    def _resolve_text_column(self, df: pd.DataFrame, mode: str) -> str | None:
+        if mode == "clean_text" and "clean_text" in df.columns:
+            return "clean_text"
+        preferred = ["Full Text", "full_text", "text", "본문", "내용"]
+        for col in preferred:
+            if col in df.columns:
+                return col
+        return None
+
     def run_scan(self) -> None:
         if (self.app_state.tokens_df is None or self.app_state.tokens_df.empty) and (
             self.app_state.dedup_df is None or self.app_state.dedup_df.empty
         ):
             QMessageBox.warning(self, "유해성 스캔", "분석할 데이터가 없습니다. 전처리/텍스트마이닝을 먼저 실행하세요.")
+            return
+        target_df = self.app_state.tokens_df if self.app_state.tokens_df is not None else self.app_state.dedup_df
+        text_col = self._resolve_text_column(target_df, self.text_mode.currentText())
+        if text_col is None:
+            QMessageBox.warning(self, "유해성 스캔", "텍스트 컬럼을 찾을 수 없습니다. 전처리/텍마 옵션을 확인하세요.")
             return
         try:
             dictionaries = {
@@ -128,8 +143,6 @@ class ToxicityPage(QWidget):
             }
             role_to_delta = {role: int(combo.currentText()) for role, combo in self.role_delta_inputs.items()}
             whitelist = [l.strip() for l in self.whitelist.toPlainText().splitlines() if l.strip()]
-            text_col = "clean_text" if self.text_mode.currentText() == "clean_text" else "Full Text"
-            target_df = self.app_state.tokens_df if self.app_state.tokens_df is not None else self.app_state.dedup_df
             detail_df, summary_df = toxicity.scan_dataframe(
                 target_df,
                 text_col=text_col,
@@ -146,4 +159,5 @@ class ToxicityPage(QWidget):
             self.status_strip.update(rows, self.app_state.period_unit, self.app_state.runtime_options.get("news_excluded", False))
             self.app_state.update_log("toxicity", "completed", {"rows": rows})
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "유해성 스캔 오류", f"유해성 스캔 중 오류가 발생했습니다: {exc}")
+            detail = traceback.format_exc()
+            QMessageBox.critical(self, "유해성 스캔 오류", f"유해성 스캔 중 오류가 발생했습니다:\n{exc}\n\n{detail}")

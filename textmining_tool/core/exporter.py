@@ -23,8 +23,6 @@ SHEET_MAPPING = {
     "sentiment_sentence": "sentiment_sentence_df",
     "sentiment_doc": "sentiment_doc_df",
     "sentiment_month": "sentiment_month_df",
-    "toxicity_detail": "toxicity_detail_df",
-    "toxicity_summary": "toxicity_summary_df",
     "audit_report": "audit_report_df",
     "audit_snippets": "audit_snippets_df",
     "empty_doc_report": "empty_doc_report_df",
