@@ -112,6 +112,12 @@ class SentimentPage(QWidget):
         layout.addStretch()
         self.setLayout(layout)
 
+    def _pick_text(self, row: pd.Series) -> str:
+        for col in ("sentence_clean", "clean_text", "text", "Full Text", "full_text"):
+            if col in row and isinstance(row.get(col), str) and row.get(col).strip():
+                return row.get(col)
+        return str(row.get("clean_text", "") or "")
+
     def run_sentiment(self) -> None:
         if self.app_state.tokens_df is None or self.app_state.tokens_df.empty:
             QMessageBox.warning(self, "감성 분석", "텍스트마이닝 결과가 없습니다. 먼저 텍스트마이닝을 실행하세요.")
@@ -121,11 +127,12 @@ class SentimentPage(QWidget):
             sentence_rows = []
             min_len = int(self.min_sentence_len.currentText())
             for _, row in self.app_state.tokens_df.iterrows():
-                text = row.get("clean_text", "")
+                text = self._pick_text(row)
                 sentences = [s for s in split_sentences(text) if len(s) >= min_len]
                 for idx, sent in enumerate(sentences):
                     if self.app_state.dedup_df is not None:
-                        title_series = self.app_state.dedup_df.loc[self.app_state.dedup_df["key"] == row.get("key"), "Title"]
+                        title_col = "Title" if "Title" in self.app_state.dedup_df.columns else "title"
+                        title_series = self.app_state.dedup_df.loc[self.app_state.dedup_df["key"] == row.get("key"), title_col] if "key" in self.app_state.dedup_df.columns and title_col in self.app_state.dedup_df.columns else pd.Series([])
                         title_val = title_series.iloc[0] if not title_series.empty else ""
                     else:
                         title_val = ""
@@ -133,9 +140,9 @@ class SentimentPage(QWidget):
                         {
                             "sent_id": f"{row.get('key')}-{idx}",
                             "key": row.get("key"),
-                            "Date": row.get("Date"),
-                            "month": row.get("month"),
-                            "Page Type": row.get("Page Type"),
+                            "Date": row.get("Date") or row.get("dt"),
+                            "month": row.get("month") or row.get("time_key"),
+                            "Page Type": row.get("Page Type") or row.get("page_type"),
                             "Title": title_val,
                             "sentence_clean": sent,
                         }
@@ -183,13 +190,21 @@ class SentimentPage(QWidget):
                     self.app_state.toxicity_summary_df = tox_summary
                 except Exception as exc:  # noqa: BLE001
                     QMessageBox.warning(self, "유해성 스캔 실패", f"유해성 스캔 중 오류가 발생했습니다. 감성만 계속합니다.\n{exc}")
+                    self.app_state.toxicity_detail_df = None
+                    self.app_state.toxicity_summary_df = None
             # key가 없으면 sent_id로 대체
             key_series = sentence_df["key"].fillna(sentence_df["sent_id"])
+            clean_series = (
+                sentence_df["sentence_clean"]
+                if "sentence_clean" in sentence_df.columns
+                else sentence_df.get("clean_text", pd.Series([""] * len(sentence_df), index=sentence_df.index))
+            )
+            raw_series = clean_series
             base_df = pd.DataFrame(
                 {
                     "key": key_series,
-                    "clean_text": sentence_df["sentence_clean"],
-                    "raw_text": sentence_df["sentence_clean"],
+                    "clean_text": clean_series,
+                    "raw_text": raw_series,
                     "summary_ko": [g.get("summary_ko", "") for g in gemini_results] if gemini_results else [""] * len(sentence_df),
                 }
             )
