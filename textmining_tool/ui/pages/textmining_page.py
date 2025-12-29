@@ -19,10 +19,12 @@ from PyQt6.QtWidgets import (
     QListWidgetItem,
     QPushButton,
     QTableView,
+    QTabWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
     QMessageBox,
+    QSizePolicy,
 )
 
 from ...core import kiwi_tm, wc
@@ -59,11 +61,13 @@ class TextMiningPage(QWidget):
         self.pos_mode.addItems(["noun", "noun+adj+verb"])
         self.stopwords_edit = QTextEdit()
         self.custom_drop_edit = QTextEdit()
-        self.wordcloud_topn = QComboBox()
-        self.wordcloud_topn.addItems(["30", "50", "100", "200"])
+        self.wordcloud_tabs = QTabWidget()
+        self.wordcloud_labels: dict[int, QLabel] = {}
+        self._wc_pixmaps: dict[int, QPixmap] = {}
         self.token_exclude_list = QListWidget()
         self.token_exclude_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
-        self.token_exclude_list.setFixedHeight(140)
+        self.token_exclude_list.setMinimumHeight(180)
+        self.token_exclude_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.token_min_len = QComboBox()
         self.token_min_len.addItems(["1", "2", "3", "4"])
 
@@ -79,9 +83,6 @@ class TextMiningPage(QWidget):
         self.monthly_table = QTableView()
         self.monthly_table.setModel(self.monthly_model)
 
-        self.wordcloud_label = QLabel("")
-        self.wordcloud_label.setMinimumHeight(240)
-        self.wordcloud_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_strip = StatusStrip()
         self.empty_warning = QLabel("")
         self._is_running = False
@@ -102,13 +103,13 @@ class TextMiningPage(QWidget):
 
         sw_box = QGroupBox("불용어 (줄바꿈)")
         sw_layout = QVBoxLayout()
-        self.stopwords_edit.setFixedHeight(60)
+        self.stopwords_edit.setFixedHeight(80)
         sw_layout.addWidget(self.stopwords_edit)
         sw_box.setLayout(sw_layout)
 
         drop_box = QGroupBox("추가 제거 토큰(줄바꿈)")
         drop_layout = QVBoxLayout()
-        self.custom_drop_edit.setFixedHeight(60)
+        self.custom_drop_edit.setFixedHeight(80)
         drop_layout.addWidget(self.custom_drop_edit)
         drop_box.setLayout(drop_layout)
 
@@ -143,8 +144,7 @@ class TextMiningPage(QWidget):
         top_grid.addLayout(controls, 2, 0, 1, 2)
 
         wc_controls = QHBoxLayout()
-        wc_controls.addWidget(QLabel("워드클라우드 Top N"))
-        wc_controls.addWidget(self.wordcloud_topn)
+        wc_controls.addWidget(QLabel("워드클라우드 Top N 탭"))
         wc_controls.addStretch()
         self.btn_wc_refresh = QPushButton("워드클라우드 업데이트")
         self.btn_wc_refresh.clicked.connect(self._render_wordcloud_from_state)
@@ -152,6 +152,18 @@ class TextMiningPage(QWidget):
         self.btn_wc_popup.clicked.connect(self._open_wc_popup)
         wc_controls.addWidget(self.btn_wc_refresh)
         wc_controls.addWidget(self.btn_wc_popup)
+
+        for n in (30, 50, 100, 200):
+            tab = QWidget()
+            tab_layout = QVBoxLayout()
+            lbl = QLabel("워드클라우드가 아직 생성되지 않았습니다.")
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl.setMinimumHeight(320)
+            lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+            tab_layout.addWidget(lbl)
+            tab.setLayout(tab_layout)
+            self.wordcloud_labels[n] = lbl
+            self.wordcloud_tabs.addTab(tab, f"Top {n}")
 
         results_row = QHBoxLayout()
         left_col = QVBoxLayout()
@@ -162,11 +174,14 @@ class TextMiningPage(QWidget):
         right_col = QVBoxLayout()
         right_col.addWidget(QLabel("전체 빈도"))
         right_col.addWidget(self.freq_table)
-        right_col.addWidget(QLabel("워드클라우드 제외 토큰(체크해서 제외)"))
-        right_col.addWidget(self.token_exclude_list)
+        wc_group = QGroupBox("워드클라우드 제외 토큰(체크해서 제외)")
+        wc_group_layout = QVBoxLayout()
+        wc_group_layout.addWidget(self.token_exclude_list)
+        wc_group.setLayout(wc_group_layout)
+        right_col.addWidget(wc_group)
         wc_box = QVBoxLayout()
         wc_box.addLayout(wc_controls)
-        wc_box.addWidget(self.wordcloud_label)
+        wc_box.addWidget(self.wordcloud_tabs)
         right_col.addLayout(wc_box)
         results_row.addLayout(left_col, 1)
         results_row.addLayout(right_col, 1)
@@ -242,6 +257,8 @@ class TextMiningPage(QWidget):
         self.empty_warning.setText(warn_text)
         self.status_strip.update(len(tokens_df), self.app_state.period_unit, self.app_state.runtime_options.get("news_excluded", False))
         self.app_state.update_log("textmining", "completed", {"tokens": len(freq_df)})
+        self.run_btn.setEnabled(True)
+        self._is_running = False
 
     def _populate_exclude_list(self, freq_df: pd.DataFrame) -> None:
         self.token_exclude_list.clear()
@@ -258,12 +275,9 @@ class TextMiningPage(QWidget):
 
     def _render_wordcloud_from_state(self) -> None:
         if not self._last_wc_freqs:
-            self.wordcloud_label.setText("워드클라우드 데이터가 없습니다.")
+            for lbl in self.wordcloud_labels.values():
+                lbl.setText("워드클라우드 데이터가 없습니다.")
             return
-        try:
-            top_n = int(self.wordcloud_topn.currentText())
-        except ValueError:
-            top_n = 50
         excluded = {
             self.token_exclude_list.item(i).text().split(" (", 1)[0]
             for i in range(self.token_exclude_list.count())
@@ -271,31 +285,41 @@ class TextMiningPage(QWidget):
         }
         filtered = {t: c for t, c in self._last_wc_freqs.items() if t not in excluded}
         if not filtered:
-            self.wordcloud_label.setText("모든 토큰이 제외되었습니다.")
+            for lbl in self.wordcloud_labels.values():
+                lbl.setText("모든 토큰이 제외되었습니다.")
             return
-        freq_subset = dict(list(filtered.items())[:top_n])
         assets_dir = Path(__file__).resolve().parents[2] / "assets"
         assets_dir.mkdir(parents=True, exist_ok=True)
         font_path = assets_dir / "fonts" / "NanumGothic.ttf"
-        output_path = assets_dir / "wordcloud.png"
-        try:
-            font_to_use = str(font_path) if font_path.exists() else None
-            wc.generate_wordcloud_from_freq(freq_subset, font_to_use, output_path)
-            pixmap = QPixmap(str(output_path))
-            self.wordcloud_label.setPixmap(pixmap)
-            self.wordcloud_label.setText("")
-        except Exception as exc:  # noqa: BLE001
-            detail = traceback.format_exc()
-            self.wordcloud_label.setText(f"워드클라우드 생성 실패: {exc}")
-            self._show_error(f"워드클라우드 생성 실패: {exc}\n\n{detail}")
+        missing_font = not font_path.exists()
+        for top_n, lbl in self.wordcloud_labels.items():
+            freq_subset = dict(list(filtered.items())[:top_n])
+            output_path = assets_dir / f"wordcloud_top{top_n}.png"
+            try:
+                font_to_use = str(font_path) if font_path.exists() else None
+                wc.generate_wordcloud_from_freq(freq_subset, font_to_use, output_path)
+                pixmap = QPixmap(str(output_path))
+                lbl.setPixmap(pixmap)
+                lbl.setText("")
+                self._wc_pixmaps[top_n] = pixmap
+            except Exception as exc:  # noqa: BLE001
+                detail = traceback.format_exc()
+                lbl.setPixmap(QPixmap())
+                lbl.setText(f"워드클라우드 생성 실패: {exc}")
+                self._show_error(f"워드클라우드 생성 실패 (Top {top_n}): {exc}\n\n{detail}")
+        if missing_font:
+            self._show_error("한글 폰트가 없어 글자가 깨질 수 있습니다. assets/fonts/NanumGothic.ttf 위치를 확인하세요.")
 
     def _open_wc_popup(self) -> None:
-        pixmap = self.wordcloud_label.pixmap()
+        current_idx = self.wordcloud_tabs.currentIndex()
+        tab_text = self.wordcloud_tabs.tabText(current_idx)
+        top_n = int(tab_text.replace("Top ", "").strip())
+        pixmap = self._wc_pixmaps.get(top_n)
         if pixmap is None:
             self._show_error("워드클라우드가 아직 생성되지 않았습니다.")
             return
         dlg = QDialog(self)
-        dlg.setWindowTitle("워드클라우드 미리보기")
+        dlg.setWindowTitle(f"워드클라우드 미리보기 - {tab_text}")
         layout = QVBoxLayout()
         lbl = QLabel()
         lbl.setPixmap(pixmap.scaled(1000, 600, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
