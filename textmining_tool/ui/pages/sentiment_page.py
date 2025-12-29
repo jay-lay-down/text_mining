@@ -150,7 +150,8 @@ class SentimentPage(QWidget):
                         ]
                     )
                 except Exception as exc:  # noqa: BLE001
-                    QMessageBox.warning(self, "Gemini 호출 실패", f"Gemini 호출에 실패했습니다. 룰 기반으로만 진행합니다.\n{exc}")
+                    detail = traceback.format_exc()
+                    QMessageBox.warning(self, "Gemini 호출 실패", f"Gemini 호출에 실패했습니다. 룰 기반으로만 진행합니다.\n{exc}\n\n{detail}")
             self.app_state.gemini_evidence_df = evidence_df
             sentiment_rules = {
                 "profanity_mode": self.profanity_mode.currentText(),
@@ -172,9 +173,10 @@ class SentimentPage(QWidget):
                     self.app_state.toxicity_summary_df = tox_summary
                 except Exception as exc:  # noqa: BLE001
                     QMessageBox.warning(self, "유해성 스캔 실패", f"유해성 스캔 중 오류가 발생했습니다. 감성만 계속합니다.\n{exc}")
+            # key가 없으면 sent_id로 대체
             base_df = pd.DataFrame(
                 {
-                    "key": sentence_df["key"],
+                    "key": sentence_df.get("key", sentence_df["sent_id"]),
                     "clean_text": sentence_df["sentence_clean"],
                     "raw_text": sentence_df["sentence_clean"],
                     "summary_ko": [g.get("summary_ko", "") for g in gemini_results] if gemini_results else [""] * len(sentence_df),

@@ -69,7 +69,6 @@ class ToxicityPage(QWidget):
             form.addRow(f"{role} delta", combo)
         form_box = QGroupBox("역할/감점 설정")
         form_box.setLayout(form)
-        form_box.setMaximumHeight(220)
 
         dict_box = QGroupBox("사전 편집")
         dict_layout = QVBoxLayout()
@@ -86,7 +85,7 @@ class ToxicityPage(QWidget):
         dict_layout.addWidget(QLabel("화이트리스트 패턴"))
         dict_layout.addWidget(self.whitelist)
         dict_box.setLayout(dict_layout)
-        dict_box.setMaximumHeight(240)
+        dict_box.setMinimumWidth(700)
 
         run_btn = QPushButton("유해성 스캔 실행")
         run_btn.clicked.connect(self.run_scan)
@@ -98,6 +97,8 @@ class ToxicityPage(QWidget):
         top_grid.addWidget(form_box, 0, 0)
         top_grid.addWidget(dict_box, 0, 1)
         top_grid.addLayout(run_row, 1, 0, 1, 2)
+        top_grid.setColumnStretch(0, 1)
+        top_grid.setColumnStretch(1, 3)
 
         layout = QVBoxLayout()
         layout.addLayout(top_grid)

@@ -16,13 +16,13 @@ GEMINI_PROMPT = (
 
 def run_gemini(api_key: str, texts: List[Tuple[str, str]]) -> List[Dict[str, object]]:
     """texts -> list of (key, clean_text)."""
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(model_name="gemini-1.5-pro")
+    client = genai.Client(api_key=api_key)
+    model = "gemini-1.5-pro"
     results: List[Dict[str, object]] = []
     for key, text in texts:
         prompt = GEMINI_PROMPT + f"\nText:\n{text}"
-        response = model.generate_content(prompt)
-        content = response.text
+        resp = client.models.generate_content(model=model, contents=prompt)
+        content = resp.text or ""
         parsed = json.loads(content)
         results.append({"key": key, **parsed})
     return results

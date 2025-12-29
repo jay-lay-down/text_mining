@@ -54,6 +54,7 @@ class TextMiningPage(QWidget):
         self.pos_mode = QComboBox()
         self.pos_mode.addItems(["noun", "noun+adj+verb"])
         self.stopwords_edit = QTextEdit()
+        self.custom_drop_edit = QTextEdit()
         self.token_min_len = QComboBox()
         self.token_min_len.addItems(["1", "2", "3", "4"])
 
@@ -94,6 +95,12 @@ class TextMiningPage(QWidget):
         sw_layout.addWidget(self.stopwords_edit)
         sw_box.setLayout(sw_layout)
 
+        drop_box = QGroupBox("추가 제거 토큰(줄바꿈)")
+        drop_layout = QVBoxLayout()
+        self.custom_drop_edit.setFixedHeight(60)
+        drop_layout.addWidget(self.custom_drop_edit)
+        drop_box.setLayout(drop_layout)
+
         clean_box = QGroupBox("전처리 옵션")
         opt_grid = QGridLayout()
         opt_grid.setHorizontalSpacing(14)
@@ -120,7 +127,8 @@ class TextMiningPage(QWidget):
         top_grid = QGridLayout()
         top_grid.addWidget(clean_box, 0, 0)
         top_grid.addWidget(sw_box, 0, 1)
-        top_grid.addLayout(form, 1, 0, 1, 2)
+        top_grid.addWidget(drop_box, 0, 2)
+        top_grid.addLayout(form, 1, 0, 1, 3)
         top_grid.addLayout(controls, 2, 0, 1, 2)
 
         results_row = QHBoxLayout()
@@ -165,6 +173,7 @@ class TextMiningPage(QWidget):
             "keep_english": self.keep_english.isChecked(),
             "pos": "noun" if self.pos_mode.currentText() == "noun" else "noun+adj+verb",
             "stopwords": self.stopwords_edit.toPlainText(),
+            "custom_drop": self.custom_drop_edit.toPlainText(),
             "min_freq": int(self.min_freq.currentText()),
             "min_length": int(self.token_min_len.currentText()),
             "strict_korean_only": self.clean_opts["strict_korean_only"].isChecked(),

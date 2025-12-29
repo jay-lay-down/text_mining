@@ -120,7 +120,8 @@ class KiwiTextMiner:
                 stopset = self.stopwords.union(user_stop)
             else:
                 stopset = self.stopwords
-            tokens_no_stop = [t for t in tokens_raw if t not in stopset]
+            custom_drop = {w.strip() for w in options.get("custom_drop", "").splitlines() if w.strip()}
+            tokens_no_stop = [t for t in tokens_raw if t not in stopset and t not in custom_drop]
             if options.get("strict_korean_only", True):
                 tokens, leaked = self._filter_pure_korean(tokens_no_stop, options.get("token_min_len", 2))
                 leaked_counter.update(leaked)
