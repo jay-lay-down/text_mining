@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+import traceback
 from pathlib import Path
 
 import pandas as pd
@@ -69,7 +69,8 @@ class TextMiningPage(QWidget):
         self.monthly_table = QTableView()
         self.monthly_table.setModel(self.monthly_model)
 
-        self.wordcloud_label = QLabel("워드클라우드")
+        self.wordcloud_label = QLabel("")
+        self.wordcloud_label.setMinimumHeight(240)
         self.status_strip = StatusStrip()
         self.empty_warning = QLabel("")
         self._is_running = False
@@ -131,8 +132,10 @@ class TextMiningPage(QWidget):
         right_col = QVBoxLayout()
         right_col.addWidget(QLabel("전체 빈도"))
         right_col.addWidget(self.freq_table)
-        right_col.addWidget(QLabel("워드클라우드"))
-        right_col.addWidget(self.wordcloud_label)
+        wc_box = QVBoxLayout()
+        wc_box.addWidget(QLabel("워드클라우드"))
+        wc_box.addWidget(self.wordcloud_label)
+        right_col.addLayout(wc_box)
         results_row.addLayout(left_col, 1)
         results_row.addLayout(right_col, 1)
 
@@ -173,7 +176,8 @@ class TextMiningPage(QWidget):
                 self.app_state.dedup_df, options, text_source=self.text_source.currentText()
             )
         except Exception as exc:  # noqa: BLE001
-            self._show_error(f"텍스트마이닝 중 오류가 발생했습니다: {exc}")
+            detail = traceback.format_exc()
+            self._show_error(f"텍스트마이닝 중 오류가 발생했습니다:\n{exc}\n\n{detail}")
             self.run_btn.setEnabled(True)
             self._is_running = False
             return
@@ -210,7 +214,8 @@ class TextMiningPage(QWidget):
                 self.wordcloud_label.setPixmap(pixmap)
             except Exception as exc:  # noqa: BLE001
                 self.wordcloud_label.setText("워드클라우드 생성 실패")
-                self._show_error(f"워드클라우드 생성 실패: {exc}")
+                detail = traceback.format_exc()
+                self._show_error(f"워드클라우드 생성 실패: {exc}\n\n{detail}")
         else:
             self.wordcloud_label.setText("토큰 없음")
         total_docs = len(self.app_state.dedup_df) if self.app_state.dedup_df is not None else 0
