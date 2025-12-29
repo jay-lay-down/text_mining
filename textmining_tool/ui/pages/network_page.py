@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
@@ -12,6 +13,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QSlider,
     QSpinBox,
     QTableView,
     QVBoxLayout,
@@ -41,6 +43,20 @@ class NetworkPage(QWidget):
         self.min_edge = QSpinBox()
         self.min_edge.setRange(1, 100)
         self.min_edge.setValue(2)
+        self.edge_score = QComboBox()
+        self.edge_score.addItems(["LLR (기본)", "NPMI", "Jaccard", "Cosine", "Chi-square", "Count"])
+        self.edge_threshold = QSpinBox()
+        self.edge_threshold.setRange(1, 50)
+        self.edge_threshold.setValue(2)
+        self.top_edge_pct = QDoubleSpinBox()
+        self.top_edge_pct.setRange(0.0, 100.0)
+        self.top_edge_pct.setSingleStep(1.0)
+        self.top_edge_pct.setValue(10.0)
+        self.layout_tightness = QSlider(Qt.Orientation.Horizontal)
+        self.layout_tightness.setRange(1, 10)
+        self.layout_tightness.setValue(5)
+        self.hide_isolates = QCheckBox("고립 노드 숨기기")
+        self.avoid_overlap = QCheckBox("라벨 겹침 방지")
 
         self.rules_model = PandasModel(pd.DataFrame())
         self.rules_table = QTableView()
@@ -65,15 +81,31 @@ class NetworkPage(QWidget):
         form.addRow("min_confidence", self.min_conf)
         form.addRow("min_lift", self.min_lift)
         form.addRow("min_edge_weight", self.min_edge)
-        cfg_box = QGroupBox("연관/네트워크")
+        cfg_box = QGroupBox("Apriori 설정")
         cfg_box.setLayout(form)
+
+        score_form = QFormLayout()
+        score_form.addRow("엣지 점수", self.edge_score)
+        score_form.addRow("최소 공기출현 n11", self.edge_threshold)
+        score_form.addRow("상위 Edge % 유지", self.top_edge_pct)
+        score_form.addRow("레이아웃 뭉침 정도", self.layout_tightness)
+        score_form.addRow(self.hide_isolates, self.avoid_overlap)
+        score_box = QGroupBox("네트워크/레이아웃")
+        score_box.setLayout(score_form)
 
         btn = QPushButton("실행")
         btn.clicked.connect(self.run_analysis)
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        btn_row.addWidget(btn)
+
+        top_row = QHBoxLayout()
+        top_row.addWidget(cfg_box)
+        top_row.addWidget(score_box)
 
         layout = QVBoxLayout()
-        layout.addWidget(cfg_box)
-        layout.addWidget(btn)
+        layout.addLayout(top_row)
+        layout.addLayout(btn_row)
         layout.addWidget(QLabel("Rules"))
         layout.addWidget(self.rules_table)
         layout.addWidget(QLabel("Nodes"))

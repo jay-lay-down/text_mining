@@ -86,17 +86,18 @@ class TextMiningPage(QWidget):
 
         sw_box = QGroupBox("불용어 (줄바꿈)")
         sw_layout = QVBoxLayout()
-        self.stopwords_edit.setFixedHeight(120)
+        self.stopwords_edit.setFixedHeight(80)
         sw_layout.addWidget(self.stopwords_edit)
         sw_box.setLayout(sw_layout)
 
         clean_box = QGroupBox("전처리 옵션")
-        c_layout = QVBoxLayout()
-        for opt in self.clean_opts.values():
-            c_layout.addWidget(opt)
-        c_layout.addWidget(self.keep_number)
-        c_layout.addWidget(self.keep_english)
-        clean_box.setLayout(c_layout)
+        opt_grid = QGridLayout()
+        opts = list(self.clean_opts.values())
+        for idx, opt in enumerate(opts):
+            opt_grid.addWidget(opt, idx // 2, idx % 2)
+        opt_grid.addWidget(self.keep_number, (len(opts)) // 2, 0)
+        opt_grid.addWidget(self.keep_english, (len(opts)) // 2, 1)
+        clean_box.setLayout(opt_grid)
 
         controls = QHBoxLayout()
         self.run_btn = QPushButton("실행")
