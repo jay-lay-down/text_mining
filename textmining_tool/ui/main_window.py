@@ -50,14 +50,20 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(container)
 
     def _init_pages(self) -> None:
-        pages = [
-            ("데이터 준비", PreprocessPage(self.app_state)),
-            ("트렌드/피벗", BuzzPage(self.app_state)),
-            ("키워드·토픽", TextMiningPage(self.app_state)),
-            ("유해성/맥락", ToxicityPage(self.app_state)),
-            ("감성/증거", SentimentPage(self.app_state)),
-            ("연관/네트워크", NetworkPage(self.app_state)),
-            ("내보내기", ExportPage(self.app_state)),
+        page_builders = [
+            ("데이터 준비", PreprocessPage),
+            ("트렌드/피벗", BuzzPage),
+            ("키워드·토픽", TextMiningPage),
+            ("유해성/맥락", ToxicityPage),
+            ("감성/증거", SentimentPage),
+            ("연관/네트워크", NetworkPage),
+            ("내보내기", ExportPage),
         ]
-        for name, widget in pages:
+        for name, page_cls in page_builders:
+            try:
+                widget = page_cls(self.app_state)
+            except Exception as exc:  # noqa: BLE001
+                from PyQt6.QtWidgets import QLabel
+
+                widget = QLabel(f"{name} 초기화 오류: {exc}")
             self.tab.addTab(widget, name)
