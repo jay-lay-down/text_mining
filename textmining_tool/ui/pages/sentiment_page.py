@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import traceback
+from pathlib import Path
+
+import matplotlib.pyplot as plt
 import pandas as pd
+from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QComboBox,
     QFormLayout,
@@ -49,6 +54,14 @@ class SentimentPage(QWidget):
         self.sentiment_model = PandasModel(pd.DataFrame())
         self.sentiment_table = QTableView()
         self.sentiment_table.setModel(self.sentiment_model)
+        self.summary_model = PandasModel(pd.DataFrame())
+        self.summary_table = QTableView()
+        self.summary_table.setModel(self.summary_model)
+        self.voc_model = PandasModel(pd.DataFrame())
+        self.voc_table = QTableView()
+        self.voc_table.setModel(self.voc_model)
+        self.chart_label = QLabel()
+        self.chart_label.setMinimumHeight(220)
         self.status_strip = StatusStrip()
         self._build_ui()
 
@@ -78,6 +91,12 @@ class SentimentPage(QWidget):
 
         layout = QVBoxLayout()
         layout.addLayout(top_grid)
+        layout.addWidget(QLabel("감성 점수 분포"))
+        layout.addWidget(self.chart_label)
+        layout.addWidget(QLabel("점수 요약"))
+        layout.addWidget(self.summary_table)
+        layout.addWidget(QLabel("문장/VOC"))
+        layout.addWidget(self.voc_table)
         layout.addWidget(self.sentiment_table)
         layout.addWidget(self.status_strip)
         layout.addStretch()
@@ -163,6 +182,34 @@ class SentimentPage(QWidget):
             )
             sentiment_sentence_df = rules_engine.build_sentiment_df(base_df, evidence_df, sentiment_rules, toxicity_df=self.app_state.toxicity_detail_df)
             self.app_state.sentiment_sentence_df = sentiment_sentence_df
+            # 요약 테이블
+            score_counts = sentiment_sentence_df["score_5"].value_counts().reindex([-2, -1, 0, 1, 2], fill_value=0)
+            summary_df = score_counts.reset_index()
+            summary_df.columns = ["score_5", "count"]
+            self.summary_model.update(summary_df)
+            # VOC: 상위 강한 부정/긍정 20개
+            voc_df = sentiment_sentence_df.sort_values("score_5").head(20)[["sentence_clean", "score_5", "toxicity_level"]]
+            self.voc_model.update(voc_df)
+            # 바차트 생성
+            try:
+                colors = {-2: "#b30000", -1: "#e55c5c", 0: "#888888", 1: "#4a90e2", 2: "#003f8c"}
+                fig, ax = plt.subplots(figsize=(6, 2.4))
+                bars = ax.bar([str(k) for k in score_counts.index], score_counts.values, color=[colors[k] for k in score_counts.index])
+                ax.set_title("감성 점수 분포")
+                ax.set_ylabel("건수")
+                for bar in bars:
+                    height = bar.get_height()
+                    ax.text(bar.get_x() + bar.get_width() / 2, height, f"{int(height)}", ha="center", va="bottom", fontsize=8)
+                fig.tight_layout()
+                assets_dir = Path(__file__).resolve().parents[2] / "assets"
+                assets_dir.mkdir(parents=True, exist_ok=True)
+                chart_path = assets_dir / "sentiment_chart.png"
+                fig.savefig(chart_path)
+                plt.close(fig)
+                self.chart_label.setPixmap(QPixmap(str(chart_path)))
+            except Exception as exc:  # noqa: BLE001
+                detail = traceback.format_exc()
+                QMessageBox.warning(self, "차트 생성 실패", f"감성 분포 차트 생성에 실패했습니다.\n{exc}\n\n{detail}")
             doc_df = (
                 sentiment_sentence_df.groupby("key")
                 .agg(doc_score_5=("score_5", "mean"), toxicity_level=("toxicity_level", lambda x: x.mode().iat[0] if not x.empty else None))
@@ -181,4 +228,5 @@ class SentimentPage(QWidget):
             self.status_strip.update(len(sentiment_sentence_df), self.app_state.period_unit, self.app_state.runtime_options.get("news_excluded", False))
             self.app_state.update_log("sentiment", "completed", {"rows": len(sentiment_sentence_df)})
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "감성 분석 오류", f"감성 분석 중 오류가 발생했습니다: {exc}")
+            detail = traceback.format_exc()
+            QMessageBox.critical(self, "감성 분석 오류", f"감성 분석 중 오류가 발생했습니다: {exc}\n\n{detail}")

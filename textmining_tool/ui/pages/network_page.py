@@ -106,6 +106,7 @@ class NetworkPage(QWidget):
         top_row.addWidget(score_box)
 
         layout = QVBoxLayout()
+        layout.setContentsMargins(6, 6, 6, 6)
         layout.addLayout(top_row)
         layout.addLayout(btn_row)
         layout.addWidget(QLabel("Rules"))

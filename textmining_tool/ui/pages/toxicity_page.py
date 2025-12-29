@@ -39,12 +39,17 @@ class ToxicityPage(QWidget):
         }
         for combo in self.role_delta_inputs.values():
             combo.addItems(["-2", "-1", "0", "1"])
-        self.profanity_tokens = QTextEdit("\n".join(toxicity.DEFAULT_DICTS["PROFANITY_TOKENS"]))
-        self.pos_cues = QTextEdit("\n".join(toxicity.DEFAULT_DICTS["POS_CUES"]))
-        self.neg_cues = QTextEdit("\n".join(toxicity.DEFAULT_DICTS["NEG_CUES"]))
-        self.target_cues = QTextEdit("\n".join(toxicity.DEFAULT_DICTS["TARGET_CUES"]))
-        self.insult_suffix = QTextEdit("\n".join(toxicity.DEFAULT_DICTS["INSULT_SUFFIX"]))
-        self.whitelist = QTextEdit()
+        def _mini_textbox(default: str = "") -> QTextEdit:
+            box = QTextEdit(default)
+            box.setMinimumHeight(64)
+            return box
+
+        self.profanity_tokens = _mini_textbox("\n".join(toxicity.DEFAULT_DICTS["PROFANITY_TOKENS"]))
+        self.pos_cues = _mini_textbox("\n".join(toxicity.DEFAULT_DICTS["POS_CUES"]))
+        self.neg_cues = _mini_textbox("\n".join(toxicity.DEFAULT_DICTS["NEG_CUES"]))
+        self.target_cues = _mini_textbox("\n".join(toxicity.DEFAULT_DICTS["TARGET_CUES"]))
+        self.insult_suffix = _mini_textbox("\n".join(toxicity.DEFAULT_DICTS["INSULT_SUFFIX"]))
+        self.whitelist = _mini_textbox()
 
         self.table_model = PandasModel(pd.DataFrame())
         self.table_view = QTableView()
