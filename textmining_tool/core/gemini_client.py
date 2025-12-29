@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Dict, List, Tuple
 
-import google.generativeai as genai
+from google import genai
 
 
 GEMINI_PROMPT = (
@@ -17,7 +17,7 @@ GEMINI_PROMPT = (
 def run_gemini(api_key: str, texts: List[Tuple[str, str]]) -> List[Dict[str, object]]:
     """texts -> list of (key, clean_text)."""
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-pro")
+    model = genai.GenerativeModel(model_name="gemini-1.5-pro")
     results: List[Dict[str, object]] = []
     for key, text in texts:
         prompt = GEMINI_PROMPT + f"\nText:\n{text}"

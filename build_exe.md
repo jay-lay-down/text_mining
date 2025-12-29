@@ -7,7 +7,7 @@ pyinstaller --noconfirm --onefile --windowed ^
   --add-data "assets\\fonts\\NanumGothic.ttf;assets\\fonts" ^
   --hidden-import PyQt6.QtWebEngineWidgets ^
   --hidden-import kiwipiepy ^
-  --hidden-import google.generativeai ^
+  --hidden-import google.genai ^
   --hidden-import pyvis ^
   app.py
 ```
