@@ -213,8 +213,8 @@ class TextMiningPage(QWidget):
                 pixmap = QPixmap(str(output_path))
                 self.wordcloud_label.setPixmap(pixmap)
             except Exception as exc:  # noqa: BLE001
-                self.wordcloud_label.setText("워드클라우드 생성 실패")
                 detail = traceback.format_exc()
+                self.wordcloud_label.setText(f"워드클라우드 생성 실패: {exc}")
                 self._show_error(f"워드클라우드 생성 실패: {exc}\n\n{detail}")
         else:
             self.wordcloud_label.setText("토큰 없음")

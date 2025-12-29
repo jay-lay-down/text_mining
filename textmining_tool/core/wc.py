@@ -34,7 +34,11 @@ def generate_wordcloud(tokens: Iterable[str], font_path: Optional[str], output_p
             kwargs["font_path"] = str(cand)
             break
 
-    wc = WordCloud(**kwargs)
-    wc.generate(" ".join(tokens_list))
-    wc.to_file(output_path)
-    return output_path
+    try:
+        wc = WordCloud(**kwargs)
+        wc.generate(" ".join(tokens_list))
+        wc.to_file(output_path)
+        return output_path
+    except Exception as exc:  # noqa: BLE001
+        # Re-raise with more context so UI can display a clear message
+        raise RuntimeError(f"워드클라우드 생성 실패: {exc}") from exc
