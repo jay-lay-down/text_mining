@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
-from pandas.api.types import is_scalar
 from PyQt6.QtCore import QAbstractTableModel, QModelIndex, Qt
 from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
@@ -26,11 +26,13 @@ class PandasModel(QAbstractTableModel):
         if not index.isValid() or role not in {Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole}:
             return None
         value = self._df.iat[index.row(), index.column()]
-        if is_scalar(value):
-            return "" if pd.isna(value) else str(value)
-        if hasattr(value, "__len__") and len(value) == 0:  # type: ignore[arg-type]
+        # Guard against array-like values that make pd.isna ambiguous
+        if isinstance(value, (list, tuple, np.ndarray, pd.Series)):
             return ""
-        return str(value)
+        try:
+            return "" if pd.isna(value) else str(value)
+        except Exception:
+            return str(value)
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole):  # noqa: ANN001, N802
         if role != Qt.ItemDataRole.DisplayRole:

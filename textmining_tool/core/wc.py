@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Iterable, Optional
+import os
+import sys
 
 from wordcloud import WordCloud
 
@@ -23,7 +24,28 @@ def generate_wordcloud(tokens: Iterable[str], font_path: Optional[str], output_p
 
     kwargs = {"width": 800, "height": 600, "background_color": "white"}
 
-    kwargs["font_path"] = _select_font(font_path)
+    # Prefer provided font_path, otherwise fall back to bundled NanumGothic (PyInstaller-safe).
+    candidate_paths = []
+    env_font = os.environ.get("TEXTMINING_FONT_PATH")
+    if env_font:
+        candidate_paths.append(Path(env_font))
+    if font_path:
+        candidate_paths.append(Path(font_path))
+    candidate_paths.append(resource_path("assets", "fonts", "NanumGothic.ttf"))
+    candidate_paths.append(Path(r"C:\Users\70089004\tm_test\text_mining\assets\fonts\NanumSquareNeo-bRg.ttf"))
+    chosen_font = None
+    for cand in candidate_paths:
+        if cand and cand.exists():
+            chosen_font = str(cand)
+            break
+
+    if not chosen_font:
+        raise FileNotFoundError(
+            "한글 폰트 파일(NanumGothic.ttf 또는 NanumSquareNeo-bRg.ttf)을 찾을 수 없습니다. "
+            "assets/fonts 경로나 번들 포함 여부를 확인하고, 필요 시 TEXTMINING_FONT_PATH 환경변수로 폰트 경로를 지정하세요."
+        )
+
+    kwargs["font_path"] = chosen_font
 
     try:
         wc = WordCloud(**kwargs)
@@ -44,7 +66,27 @@ def generate_wordcloud_from_freq(freqs: dict[str, int], font_path: Optional[str]
 
     kwargs = {"width": 900, "height": 500, "background_color": "white"}
 
-    kwargs["font_path"] = _select_font(font_path)
+    candidate_paths = []
+    env_font = os.environ.get("TEXTMINING_FONT_PATH")
+    if env_font:
+        candidate_paths.append(Path(env_font))
+    if font_path:
+        candidate_paths.append(Path(font_path))
+    candidate_paths.append(resource_path("assets", "fonts", "NanumGothic.ttf"))
+    candidate_paths.append(Path(r"C:\Users\70089004\tm_test\text_mining\assets\fonts\NanumSquareNeo-bRg.ttf"))
+    chosen_font = None
+    for cand in candidate_paths:
+        if cand and cand.exists():
+            chosen_font = str(cand)
+            break
+
+    if not chosen_font:
+        raise FileNotFoundError(
+            "한글 폰트 파일(NanumGothic.ttf 또는 NanumSquareNeo-bRg.ttf)을 찾을 수 없습니다. "
+            "assets/fonts 경로나 번들 포함 여부를 확인하고, 필요 시 TEXTMINING_FONT_PATH 환경변수로 폰트 경로를 지정하세요."
+        )
+
+    kwargs["font_path"] = chosen_font
 
     try:
         wc = WordCloud(**kwargs)
@@ -53,28 +95,3 @@ def generate_wordcloud_from_freq(freqs: dict[str, int], font_path: Optional[str]
         return output_path
     except Exception as exc:  # noqa: BLE001
         raise RuntimeError(f"워드클라우드 생성 실패: {exc}") from exc
-
-
-def _select_font(font_path: Optional[str]) -> str:
-    """Return the first available font path from user-provided and bundled candidates."""
-    candidate_paths = []
-    if font_path:
-        candidate_paths.append(Path(font_path))
-
-    # Preferred supplied font (user drop-in)
-    candidate_paths.append(resource_path("assets", "fonts", "NanumSquareNeo-bRg.ttf"))
-    # Legacy bundled font for backward compatibility
-    candidate_paths.append(resource_path("assets", "fonts", "NanumGothic.ttf"))
-    # Also search non-bundled project-root assets for local runs
-    cwd_assets = Path.cwd() / "assets" / "fonts"
-    candidate_paths.append(cwd_assets / "NanumSquareNeo-bRg.ttf")
-    candidate_paths.append(cwd_assets / "NanumGothic.ttf")
-
-    for cand in candidate_paths:
-        if cand and cand.exists():
-            return str(cand)
-
-    raise FileNotFoundError(
-        "한글 폰트 파일을 찾을 수 없습니다. assets/fonts에 NanumSquareNeo-bRg.ttf (또는 NanumGothic.ttf)을 "
-        "복사했는지, PyInstaller 번들에 포함했는지 확인하세요."
-    )
