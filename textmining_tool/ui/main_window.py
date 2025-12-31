@@ -3,13 +3,12 @@ from __future__ import annotations
 from PyQt6.QtWidgets import QMainWindow, QTabWidget, QVBoxLayout, QWidget
 
 from ..core.state import AppState, DEFAULT_EXPORT_SHEETS
-from .pages.buzz_page import BuzzPage
 from .pages.export_page import ExportPage
 from .pages.network_page import NetworkPage
 from .pages.preprocess_page import PreprocessPage
 from .pages.sentiment_page import SentimentPage
 from .pages.toxicity_page import ToxicityPage
-from .pages.textmining_page import TextMiningPage
+from .pages.trends_keywords_page import TrendsKeywordsPage
 
 
 class MainWindow(QMainWindow):
@@ -51,13 +50,12 @@ class MainWindow(QMainWindow):
 
     def _init_pages(self) -> None:
         page_builders = [
-            ("데이터 준비", PreprocessPage),
-            ("트렌드/피벗", BuzzPage),
-            ("키워드·토픽", TextMiningPage),
-            ("유해성/맥락", ToxicityPage),
-            ("감성/증거", SentimentPage),
-            ("연관/네트워크", NetworkPage),
-            ("내보내기", ExportPage),
+            ("Data Prep", PreprocessPage),
+            ("Trends & Keywords", TrendsKeywordsPage),
+            ("Toxicity / Context", ToxicityPage),
+            ("Sentiment / Evidence", SentimentPage),
+            ("Network", NetworkPage),
+            ("Export", ExportPage),
         ]
         for name, page_cls in page_builders:
             try:
