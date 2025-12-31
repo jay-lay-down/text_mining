@@ -42,7 +42,8 @@ class ToxicityPage(QWidget):
             combo.addItems(["-2", "-1", "0", "1"])
         def _mini_textbox(default: str = "") -> QTextEdit:
             box = QTextEdit(default)
-            box.setMinimumHeight(64)
+            box.setMinimumHeight(60)
+            box.setMaximumHeight(120)
             return box
 
         self.profanity_tokens = _mini_textbox("\n".join(toxicity.DEFAULT_DICTS["PROFANITY_TOKENS"]))
@@ -63,13 +64,16 @@ class ToxicityPage(QWidget):
 
     def _build_ui(self) -> None:
         form = QFormLayout()
-        form.setVerticalSpacing(6)
+        form.setVerticalSpacing(8)
+        form.setHorizontalSpacing(12)
         form.addRow("텍스트 모드", self.text_mode)
         form.addRow("Context 모드", self.context_mode)
         for role, combo in self.role_delta_inputs.items():
             form.addRow(f"{role} delta", combo)
         form_box = QGroupBox("역할/감점 설정")
         form_box.setLayout(form)
+        form_box.setMinimumWidth(300)
+        form_box.setMaximumWidth(380)
 
         dict_box = QGroupBox("사전 편집")
         dict_layout = QVBoxLayout()
@@ -86,7 +90,8 @@ class ToxicityPage(QWidget):
         dict_layout.addWidget(QLabel("화이트리스트 패턴"))
         dict_layout.addWidget(self.whitelist)
         dict_box.setLayout(dict_layout)
-        dict_box.setMinimumWidth(700)
+        dict_box.setMinimumWidth(520)
+        dict_box.setSizePolicy(dict_box.sizePolicy().horizontalPolicy(), dict_box.sizePolicy().verticalPolicy())
 
         run_btn = QPushButton("유해성 스캔 실행")
         run_btn.clicked.connect(self.run_scan)
@@ -95,6 +100,7 @@ class ToxicityPage(QWidget):
         run_row.addWidget(run_btn)
 
         top_grid = QGridLayout()
+        top_grid.setHorizontalSpacing(14)
         top_grid.addWidget(form_box, 0, 0)
         top_grid.addWidget(dict_box, 0, 1)
         top_grid.addLayout(run_row, 1, 0, 1, 2)

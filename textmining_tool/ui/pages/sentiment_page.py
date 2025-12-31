@@ -87,7 +87,8 @@ class SentimentPage(QWidget):
         form.addRow("욕설 리스트", self.profanity_list)
         cfg_box = QGroupBox("감성 설정")
         cfg_box.setLayout(form)
-        cfg_box.setMinimumWidth(960)
+        cfg_box.setMinimumWidth(680)
+        cfg_box.setMaximumWidth(860)
 
         btn = QPushButton("실행")
         btn.clicked.connect(self.run_sentiment)
@@ -96,6 +97,7 @@ class SentimentPage(QWidget):
         btn_row.addWidget(btn)
 
         top_grid = QGridLayout()
+        top_grid.setHorizontalSpacing(12)
         top_grid.addWidget(cfg_box, 0, 0)
         top_grid.addLayout(btn_row, 1, 0)
 
