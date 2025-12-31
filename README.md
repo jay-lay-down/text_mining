@@ -18,4 +18,5 @@ python -m textmining_tool.app
 - Export: 선택 시트만 Excel 저장, 빈 시트 포함 옵션(감성/유해성/audit 시트 포함)
 
 ## 빌드
-PyInstaller 예시는 `build_exe.md`를 참고하세요. `assets/fonts/NanumGothic.ttf`는 실제 폰트로 교체 후 빌드합니다.
+PyInstaller 예시는 `build_exe.md`를 참고하세요.
+- 워드클라우드/한글 표시를 위해 `assets/fonts/NanumSquareNeo-bRg.ttf`(또는 기존 `NanumGothic.ttf`)를 프로젝트 루트의 `assets/fonts`나 `textmining_tool/assets/fonts`에 복사하고, PyInstaller 번들에 포함시켜 주세요.
