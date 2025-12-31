@@ -66,8 +66,9 @@ class TextMiningPage(QWidget):
         self._wc_pixmaps: dict[int, QPixmap] = {}
         self.token_exclude_list = QListWidget()
         self.token_exclude_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
-        self.token_exclude_list.setMinimumHeight(180)
-        self.token_exclude_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.token_exclude_list.setMinimumHeight(120)
+        self.token_exclude_list.setMaximumHeight(220)
+        self.token_exclude_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.token_min_len = QComboBox()
         self.token_min_len.addItems(["1", "2", "3", "4"])
 
@@ -290,9 +291,15 @@ class TextMiningPage(QWidget):
             return
         assets_dir = wc.resource_path("assets")
         assets_dir.mkdir(parents=True, exist_ok=True)
-        font_path = wc.resource_path("assets", "fonts", "NanumGothic.ttf")
+        font_path = wc.resource_path("assets", "fonts", "NanumSquareNeo-bRg.ttf")
         font_path.parent.mkdir(parents=True, exist_ok=True)
-        missing_font = not font_path.exists()
+        font_candidates = [
+            font_path,
+            wc.resource_path("assets", "fonts", "NanumGothic.ttf"),
+            Path.cwd() / "assets" / "fonts" / "NanumSquareNeo-bRg.ttf",
+            Path.cwd() / "assets" / "fonts" / "NanumGothic.ttf",
+        ]
+        missing_font = not any(p.exists() for p in font_candidates)
         for top_n, lbl in self.wordcloud_labels.items():
             freq_subset = dict(list(filtered.items())[:top_n])
             output_path = assets_dir / f"wordcloud_top{top_n}.png"
