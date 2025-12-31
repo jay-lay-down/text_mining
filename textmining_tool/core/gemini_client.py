@@ -19,7 +19,7 @@ def run_gemini(api_key: str, texts: List[Tuple[str, str]]) -> List[Dict[str, obj
     """texts -> list of (key, clean_text)."""
     client = genai.Client(api_key=api_key)
 
-    # Discover models that support generateContent; fall back to a safe shortlist.
+    # Discover models that support generateContent; prioritize Gemini 3.x.
     candidate_models: List[str] = []
     try:
         for m in client.models.list():
@@ -29,12 +29,40 @@ def run_gemini(api_key: str, texts: List[Tuple[str, str]]) -> List[Dict[str, obj
     except Exception:
         candidate_models = []
 
+    def _prioritize(models: List[str]) -> List[str]:
+        # Gemini 3.x first, then 1.5 family.
+        pri_3 = [m for m in models if "gemini-3" in m]
+        pri_15 = [m for m in models if "gemini-1.5" in m and m not in pri_3]
+        others = [m for m in models if m not in pri_3 and m not in pri_15]
+        prioritized = pri_3 + pri_15 + others
+        # Ensure fully-qualified names
+        normalized = []
+        for name in prioritized:
+            if not name.startswith("models/"):
+                normalized.append(f"models/{name}")
+            else:
+                normalized.append(name)
+        # Deduplicate while preserving order
+        seen = set()
+        ordered = []
+        for n in normalized:
+            if n not in seen:
+                seen.add(n)
+                ordered.append(n)
+        return ordered
+
+    candidate_models = _prioritize(candidate_models) if candidate_models else []
+
     if not candidate_models:
-        candidate_models = [
-            "models/gemini-1.5-pro",
-            "models/gemini-1.5-flash",
-            "models/gemini-1.5-flash-001",
-        ]
+        candidate_models = _prioritize(
+            [
+                "models/gemini-3.0-pro",
+                "models/gemini-3.0-flash",
+                "models/gemini-1.5-pro",
+                "models/gemini-1.5-flash",
+                "models/gemini-1.5-flash-001",
+            ]
+        )
 
     results: List[Dict[str, object]] = []
     for key, text in texts:
