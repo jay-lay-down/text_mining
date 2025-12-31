@@ -87,8 +87,8 @@ class SentimentPage(QWidget):
         form.addRow("욕설 리스트", self.profanity_list)
         cfg_box = QGroupBox("감성 설정")
         cfg_box.setLayout(form)
-        cfg_box.setMinimumWidth(680)
-        cfg_box.setMaximumWidth(860)
+        cfg_box.setMinimumWidth(900)
+        cfg_box.setSizePolicy(cfg_box.sizePolicy().horizontalPolicy(), cfg_box.sizePolicy().verticalPolicy())
 
         btn = QPushButton("실행")
         btn.clicked.connect(self.run_sentiment)
@@ -157,7 +157,7 @@ class SentimentPage(QWidget):
             evidence_df = pd.DataFrame(columns=["key", "phrase", "type", "strength", "aspect", "target"])
             if api_key:
                 try:
-                    gemini_results = gemini_client.run_gemini(api_key, [(row["sent_id"], row["sentence_clean"]) for _, row in sentence_df.iterrows()])
+                    gemini_results = gemini_client.run_gemini(api_key, [(row["sent_id"], row.get("sentence_clean", "")) for _, row in sentence_df.iterrows()])
                     evidence_df = pd.DataFrame(
                         [
                             {
@@ -195,12 +195,10 @@ class SentimentPage(QWidget):
                     self.app_state.toxicity_detail_df = None
                     self.app_state.toxicity_summary_df = None
             # key가 없으면 sent_id로 대체
+            if "sentence_clean" not in sentence_df.columns:
+                sentence_df["sentence_clean"] = sentence_df["clean_text"] if "clean_text" in sentence_df.columns else sentence_df.get("text", "")
             key_series = sentence_df["key"].fillna(sentence_df["sent_id"])
-            clean_series = (
-                sentence_df["sentence_clean"]
-                if "sentence_clean" in sentence_df.columns
-                else sentence_df.get("clean_text", pd.Series([""] * len(sentence_df), index=sentence_df.index))
-            )
+            clean_series = sentence_df["sentence_clean"]
             raw_series = clean_series
             base_df = pd.DataFrame(
                 {

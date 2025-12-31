@@ -33,7 +33,7 @@ def run_gemini(api_key: str, texts: List[Tuple[str, str]]) -> List[Dict[str, obj
         candidate_models = [
             "models/gemini-1.5-pro",
             "models/gemini-1.5-flash",
-            "models/gemini-3.5-pro-preview",
+            "models/gemini-1.5-flash-001",
         ]
 
     results: List[Dict[str, object]] = []
@@ -59,5 +59,6 @@ def run_gemini(api_key: str, texts: List[Tuple[str, str]]) -> List[Dict[str, obj
                 last_error = exc
                 break
         else:
-            raise RuntimeError(f"Gemini 호출 실패 (모든 모델 시도): {last_error}") from last_error
+            # 모든 후보 실패 시 빈 결과를 반환하고 호출 측에서 룰 기반으로만 진행
+            return []
     return results

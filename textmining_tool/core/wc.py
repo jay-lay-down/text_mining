@@ -32,7 +32,9 @@ def generate_wordcloud(tokens: Iterable[str], font_path: Optional[str], output_p
     if font_path:
         candidate_paths.append(Path(font_path))
     candidate_paths.append(resource_path("assets", "fonts", "NanumGothic.ttf"))
-    candidate_paths.append(Path(r"C:\Users\70089004\tm_test\text_mining\assets\fonts\NanumSquareNeo-bRg.ttf"))
+    candidate_paths.append(resource_path("assets", "fonts", "NanumSquareNeo-bRg.ttf"))
+    candidate_paths.append(Path.cwd() / "textmining_tool" / "assets" / "fonts" / "NanumSquareNeo-bRg.ttf")
+    candidate_paths.append(Path(r"C:\Users\70089004\tm_test\text_mining\textmining_tool\assets\fonts\NanumSquareNeo-bRg.ttf"))
     chosen_font = None
     for cand in candidate_paths:
         if cand and cand.exists():
@@ -73,7 +75,9 @@ def generate_wordcloud_from_freq(freqs: dict[str, int], font_path: Optional[str]
     if font_path:
         candidate_paths.append(Path(font_path))
     candidate_paths.append(resource_path("assets", "fonts", "NanumGothic.ttf"))
-    candidate_paths.append(Path(r"C:\Users\70089004\tm_test\text_mining\assets\fonts\NanumSquareNeo-bRg.ttf"))
+    candidate_paths.append(resource_path("assets", "fonts", "NanumSquareNeo-bRg.ttf"))
+    candidate_paths.append(Path.cwd() / "textmining_tool" / "assets" / "fonts" / "NanumSquareNeo-bRg.ttf")
+    candidate_paths.append(Path(r"C:\Users\70089004\tm_test\text_mining\textmining_tool\assets\fonts\NanumSquareNeo-bRg.ttf"))
     chosen_font = None
     for cand in candidate_paths:
         if cand and cand.exists():
